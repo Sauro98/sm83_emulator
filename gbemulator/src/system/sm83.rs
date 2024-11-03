@@ -3,6 +3,8 @@ use crate::system::opcodes::OpCode;
 use crate::system::ram::RAM;
 use crate::system::registers::{RegisterFile, RegisterName};
 
+use super::opcodes;
+
 struct ALU {
     output: u8,
 }
@@ -132,6 +134,103 @@ impl SM83 {
             Some(OpCode::LD_DE_A) => {
                 self.address_bus = self.register_file.get_de();
                 self.data_bus = self.register_file.get_a();
+                self.write_ram(ram);
+                self.tick_clock().await;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LD_A_nn) => {
+                // load lsb
+                self.read_ram(ram);
+                let val = self.data_bus as u16;
+                self.increase_PC();
+                self.tick_clock().await;
+                // load msb
+                self.read_ram(ram);
+                let val = val | ((self.data_bus as u16) << 8);
+                self.increase_PC();
+                self.tick_clock().await;
+                // read ram
+                self.address_bus = val;
+                self.read_ram(ram);
+                self.tick_clock().await;
+                // fetch cycle
+                self.register_file.set_a(self.data_bus);
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LD_nn_A) => {
+                // load lsb
+                self.read_ram(ram);
+                let val = self.data_bus as u16;
+                self.increase_PC();
+                self.tick_clock().await;
+                // load msb
+                self.read_ram(ram);
+                let val = val | ((self.data_bus as u16) << 8);
+                self.increase_PC();
+                self.tick_clock().await;
+                // write ram
+                self.address_bus = val;
+                self.data_bus = self.register_file.get_a();
+                self.write_ram(ram);
+                self.tick_clock().await;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LDH_A_C) => {
+                self.address_bus = 0xFF00 | (self.register_file.get_c() as u16);
+                self.read_ram(ram);
+                self.tick_clock().await;
+                self.register_file.set_a(self.data_bus);
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LDH_C_A) => {
+                self.address_bus = 0xFF00 | (self.register_file.get_c() as u16);
+                self.data_bus = self.register_file.get_a();
+                self.write_ram(ram);
+                self.tick_clock().await;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LDH_A_n) => {
+                self.read_ram(ram);
+                self.increase_PC();
+                self.tick_clock().await;
+                self.address_bus = 0xFF00 | (self.data_bus as u16);
+                self.read_ram(ram);
+                self.tick_clock().await;
+                self.register_file.set_a(self.data_bus);
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LDH_n_A) => {
+                self.read_ram(ram);
+                self.increase_PC();
+                self.tick_clock().await;
+                self.address_bus = 0xFF00 | (self.data_bus as u16);
+                self.data_bus = self.register_file.get_a();
+                self.write_ram(ram);
+                self.tick_clock().await;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LD_A_HLm) | Some(OpCode::LD_A_HLp) => {
+                // read value from ram
+                self.address_bus = self.register_file.get_hl();
+                if op_code.unwrap() == OpCode::LD_A_HLm {
+                    self.register_file.set_hl(self.register_file.get_hl() - 1);
+                } else {
+                    self.register_file.set_hl(self.register_file.get_hl() + 1);
+                }
+                self.read_ram(ram);
+                self.tick_clock().await;
+                // fetch cycle
+                self.register_file.set_a(self.data_bus);
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LD_HLm_A) | Some(OpCode::LD_HLp_A) => {
+                self.address_bus = self.register_file.get_hl();
+                self.data_bus = self.register_file.get_a();
+                if op_code.unwrap() == OpCode::LD_HLm_A {
+                    self.register_file.set_hl(self.register_file.get_hl() - 1);
+                } else {
+                    self.register_file.set_hl(self.register_file.get_hl() + 1);
+                }
                 self.write_ram(ram);
                 self.tick_clock().await;
                 self.fetch_cycle(ram);
