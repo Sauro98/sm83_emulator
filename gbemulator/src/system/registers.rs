@@ -50,7 +50,7 @@ pub struct RegisterFile {
     DE: Shared16BitRegister,
     HL: Shared16BitRegister,
     PC: u16,
-    SP: u16,
+    SP: Shared16BitRegister,
 }
 
 impl RegisterFile {
@@ -62,7 +62,7 @@ impl RegisterFile {
             DE: Shared16BitRegister::new(),
             HL: Shared16BitRegister::new(),
             PC: 0,
-            SP: 0,
+            SP: Shared16BitRegister::new(),
         };
     }
 
@@ -127,7 +127,15 @@ impl RegisterFile {
     }
 
     pub fn get_sp(&self) -> u16 {
-        return self.SP;
+        return self.SP.content;
+    }
+
+    pub fn get_s(&self) -> u8 {
+        return self.SP.first();
+    }
+
+    pub fn get_p(&self) -> u8 {
+        return self.SP.second();
     }
 
     pub fn set_ir(&mut self, value: u8) {
@@ -191,7 +199,15 @@ impl RegisterFile {
     }
 
     pub fn set_sp(&mut self, value: u16) {
-        self.SP = value;
+        self.SP.content = value;
+    }
+
+    pub fn set_s(&mut self, value: u8) {
+        self.SP.write_first(value);
+    }
+
+    pub fn set_p(&mut self, value: u8) {
+        self.SP.write_second(value);
     }
 
     pub fn set(&mut self, reg: u8, val: u8) -> Result<(), std::string::String> {
@@ -268,5 +284,53 @@ impl RegisterFile {
         }
 
         Ok(())
+    }
+
+    pub fn get_zero_flag(&self) -> u8 {
+        (self.AF.second() & 0x80) >> 7
+    }
+
+    pub fn set_zero_flag(&mut self) {
+        self.AF.write_second(self.AF.second() | 0x80);
+    }
+
+    pub fn unset_zero_flag(&mut self) {
+        self.AF.write_second(self.AF.second() & 0x7F);
+    }
+
+    pub fn get_negative_flag(&self) -> u8 {
+        (self.AF.second() & 0x40) >> 6
+    }
+
+    pub fn set_negative_flag(&mut self) {
+        self.AF.write_second(self.AF.second() | 0x40);
+    }
+
+    pub fn unset_negative_flag(&mut self) {
+        self.AF.write_second(self.AF.second() & 0xBF);
+    }
+
+    pub fn get_half_carry_flag(&self) -> u8 {
+        (self.AF.second() & 0x20) >> 5
+    }
+
+    pub fn set_half_carry_flag(&mut self) {
+        self.AF.write_second(self.AF.second() | 0x20);
+    }
+
+    pub fn unset_half_carry_flag(&mut self) {
+        self.AF.write_second(self.AF.second() & 0xDF);
+    }
+
+    pub fn get_carry_flag(&self) -> u8 {
+        (self.AF.second() & 0x10) >> 4
+    }
+
+    pub fn set_carry_flag(&mut self) {
+        self.AF.write_second(self.AF.second() | 0x10);
+    }
+
+    pub fn unset_carry_flag(&mut self) {
+        self.AF.write_second(self.AF.second() & 0xEF);
     }
 }

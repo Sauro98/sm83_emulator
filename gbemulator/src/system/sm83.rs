@@ -3,10 +3,21 @@ use crate::system::opcodes::OpCode;
 use crate::system::ram::RAM;
 use crate::system::registers::{RegisterFile, RegisterName};
 
-use super::opcodes;
+pub struct ALU {}
 
-struct ALU {
-    output: u8,
+impl ALU {
+    pub fn add(v1: u8, v2: u8) -> (u8, u8) {
+        let sum = (v1 as u16) + (v2 as u16);
+        let half_sum = (v1 & 0x0F) + (v2 & 0x0F);
+        let mut flags = 0;
+        if sum & 0x0100 != 0 {
+            flags |= 0x10;
+        }
+        if half_sum & 0x10 != 0 {
+            flags |= 0x20;
+        }
+        ((sum & 0x00FF) as u8, flags)
+    }
 }
 
 struct IDU {
@@ -28,7 +39,6 @@ pub struct SM83 {
     last_execution_time: tokio::time::Instant,
     iteration_time: u128,
     pub cycle_count: u128,
-    alu: ALU,
     idu: IDU,
     register_file: RegisterFile,
     address_bus: u16,
@@ -42,7 +52,6 @@ impl SM83 {
             last_execution_time: tokio::time::Instant::now(),
             iteration_time: 1,
             cycle_count: 0,
-            alu: ALU { output: 0 },
             idu: IDU { output: 0 },
             register_file: RegisterFile::new(),
             address_bus: 0,
@@ -72,6 +81,28 @@ impl SM83 {
 
     fn write_ram(&self, ram: &mut RAM) {
         ram.set_at(self.address_bus, self.data_bus).unwrap();
+    }
+
+    fn push_stack(&mut self) {
+        self.address_bus = self.register_file.get_sp();
+        self.register_file.set_sp(self.register_file.get_sp() - 1);
+    }
+
+    fn pop_stack(&mut self) {
+        self.address_bus = self.register_file.get_sp();
+        self.register_file.set_sp(self.register_file.get_sp() + 1);
+    }
+
+    async fn read_16b_ram(&mut self, ram: &RAM) -> u16 {
+        self.read_ram(ram);
+        let value = self.data_bus as u16;
+        self.increase_PC();
+        self.tick_clock().await;
+        self.read_ram(ram);
+        let value = ((self.data_bus as u16) << 8) | value;
+        self.increase_PC();
+        self.tick_clock().await;
+        return value;
     }
 
     async fn tick_clock(&mut self) {
@@ -140,15 +171,7 @@ impl SM83 {
             }
             Some(OpCode::LD_A_nn) => {
                 // load lsb
-                self.read_ram(ram);
-                let val = self.data_bus as u16;
-                self.increase_PC();
-                self.tick_clock().await;
-                // load msb
-                self.read_ram(ram);
-                let val = val | ((self.data_bus as u16) << 8);
-                self.increase_PC();
-                self.tick_clock().await;
+                let val = self.read_16b_ram(ram).await;
                 // read ram
                 self.address_bus = val;
                 self.read_ram(ram);
@@ -158,16 +181,8 @@ impl SM83 {
                 self.fetch_cycle(ram);
             }
             Some(OpCode::LD_nn_A) => {
-                // load lsb
-                self.read_ram(ram);
-                let val = self.data_bus as u16;
-                self.increase_PC();
-                self.tick_clock().await;
-                // load msb
-                self.read_ram(ram);
-                let val = val | ((self.data_bus as u16) << 8);
-                self.increase_PC();
-                self.tick_clock().await;
+                // load 16 bit value
+                let val = self.read_16b_ram(ram).await;
                 // write ram
                 self.address_bus = val;
                 self.data_bus = self.register_file.get_a();
@@ -247,15 +262,70 @@ impl SM83 {
             }
             Some(OpCode::LD_rr_nn) => {
                 let reg = ir >> 4 & 0x03;
-                self.read_ram(ram);
-                let value = self.data_bus as u16;
-                self.increase_PC();
-                self.tick_clock().await;
-                self.read_ram(ram);
-                let value = ((self.data_bus as u16) << 8) | value;
-                self.increase_PC();
-                self.tick_clock().await;
+                let value = self.read_16b_ram(ram).await;
                 self.register_file.set16(reg, value).unwrap();
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LD_nn_SP) => {
+                let address = self.read_16b_ram(ram).await;
+                let value = self.register_file.get_sp();
+                self.address_bus = address;
+                self.data_bus = (value & 0x00FF) as u8;
+                self.write_ram(ram);
+                self.tick_clock().await;
+                self.address_bus = address + 1;
+                self.data_bus = ((value & 0xFF00) >> 8) as u8;
+                self.write_ram(ram);
+                self.tick_clock().await;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LD_SP_HL) => {
+                self.address_bus = self.register_file.get_hl();
+                self.register_file.set_sp(self.address_bus);
+                self.tick_clock().await;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::PUSH_rr) => {
+                let reg = (ir & 0x30) >> 4;
+                let val = self.register_file.get16(reg).unwrap();
+                self.push_stack();
+                self.tick_clock().await;
+                self.data_bus = ((val & 0xFF00) >> 8) as u8;
+                self.write_ram(ram);
+                self.push_stack();
+                self.tick_clock().await;
+                self.data_bus = (val & 0x00FF) as u8;
+                self.write_ram(ram);
+                self.tick_clock().await;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::POP_rr) => {
+                let reg = (ir & 0x30) >> 4;
+                self.pop_stack();
+                self.read_ram(ram);
+                let val = self.data_bus as u16;
+                self.tick_clock().await;
+                self.pop_stack();
+                self.read_ram(ram);
+                let val = val | ((self.data_bus as u16) << 8);
+                self.tick_clock().await;
+                self.register_file.set16(reg, val).unwrap();
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::LD_HL_SPe) => {
+                self.read_ram(ram);
+                let e = self.data_bus;
+                self.increase_PC();
+                self.tick_clock().await;
+                let (sum, flags) = ALU::add(self.register_file.get_p(), e);
+                self.register_file.set_f(flags);
+                self.register_file.set_l(sum);
+                self.tick_clock().await;
+                let sign = e & 0x80;
+                let adj = if sign > 0 { 0xFF } else { 0x00 };
+                let (sum, _) = ALU::add(self.register_file.get_s(), adj);
+                let (sum, _) = ALU::add(sum, self.register_file.get_carry_flag());
+                self.register_file.set_h(sum);
                 self.fetch_cycle(ram);
             }
             Some(OpCode::LD_r_r) => {
