@@ -1,3 +1,4 @@
+pub mod alu;
 pub mod clock;
 pub mod opcodes;
 pub mod ram;

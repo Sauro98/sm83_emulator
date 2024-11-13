@@ -1,25 +1,10 @@
+use std::os::windows::raw::SOCKET;
+
+use crate::system::alu::ALU;
 use crate::system::clock::SystemClock;
 use crate::system::opcodes::OpCode;
 use crate::system::ram::RAM;
 use crate::system::registers::{RegisterFile, RegisterName};
-
-pub struct ALU {}
-
-impl ALU {
-    pub fn add(v1: u8, v2: u8) -> (u8, u8) {
-        let sum = (v1 as u16) + (v2 as u16);
-        let half_sum = (v1 & 0x0F) + (v2 & 0x0F);
-        let mut flags = 0;
-        if sum & 0x0100 != 0 {
-            flags |= 0x10;
-        }
-        if half_sum & 0x10 != 0 {
-            flags |= 0x20;
-        }
-        ((sum & 0x00FF) as u8, flags)
-    }
-}
-
 struct IDU {
     output: u16,
 }
@@ -91,6 +76,57 @@ impl SM83 {
     fn pop_stack(&mut self) {
         self.address_bus = self.register_file.get_sp();
         self.register_file.set_sp(self.register_file.get_sp() + 1);
+    }
+
+    fn add(&mut self, val: u8, carry: bool) {
+        let (sum, flags) = if carry {
+            ALU::add(self.register_file.get_a(), val)
+        } else {
+            ALU::add3(
+                self.register_file.get_a(),
+                val,
+                self.register_file.get_carry_flag(),
+            )
+        };
+        self.register_file.set_a(sum);
+        self.register_file.set_f(flags);
+    }
+
+    fn compare(&mut self, val: u8, carry: bool) -> u8 {
+        let (diff, flags) = if carry {
+            ALU::sub(self.register_file.get_a(), val)
+        } else {
+            ALU::sub3(
+                self.register_file.get_a(),
+                val,
+                self.register_file.get_carry_flag(),
+            )
+        };
+        self.register_file.set_f(flags);
+        diff
+    }
+
+    fn sub(&mut self, val: u8, carry: bool) {
+        let diff = self.compare(val, carry);
+        self.register_file.set_a(diff);
+    }
+
+    fn and(&mut self, val: u8) {
+        let (res, flags) = ALU::and(self.register_file.get_a(), val);
+        self.register_file.set_a(res);
+        self.register_file.set_f(flags);
+    }
+
+    fn or(&mut self, val: u8) {
+        let (res, flags) = ALU::or(self.register_file.get_a(), val);
+        self.register_file.set_a(res);
+        self.register_file.set_f(flags);
+    }
+
+    fn xor(&mut self, val: u8) {
+        let (res, flags) = ALU::xor(self.register_file.get_a(), val);
+        self.register_file.set_a(res);
+        self.register_file.set_f(flags);
     }
 
     async fn read_16b_ram(&mut self, ram: &RAM) -> u16 {
@@ -318,6 +354,7 @@ impl SM83 {
                 self.increase_PC();
                 self.tick_clock().await;
                 let (sum, flags) = ALU::add(self.register_file.get_p(), e);
+                let flags = if sum == 0 { flags | 0x80 } else { flags };
                 self.register_file.set_f(flags);
                 self.register_file.set_l(sum);
                 self.tick_clock().await;
@@ -357,6 +394,98 @@ impl SM83 {
                 self.write_ram(ram);
                 self.tick_clock().await;
                 // fetch cycle
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::ADD_r) | Some(OpCode::ADC_r) | Some(OpCode::SUB_r)
+            | Some(OpCode::SBC_r) | Some(OpCode::CP_r) | Some(OpCode::AND_r)
+            | Some(OpCode::OR_r) | Some(OpCode::XOR_r) => {
+                let reg = ir & 0x07;
+                let val = self.register_file.get(reg).unwrap();
+                match op_code.unwrap() {
+                    OpCode::ADD_r => self.add(val, false),
+                    OpCode::ADC_r => self.add(val, true),
+                    OpCode::SUB_r => self.sub(val, false),
+                    OpCode::SBC_r => self.sub(val, true),
+                    OpCode::CP_r => {
+                        self.compare(val, false);
+                    }
+                    OpCode::AND_r => self.and(val),
+                    OpCode::OR_r => self.or(val),
+                    OpCode::XOR_r => self.xor(val),
+                    _ => {}
+                }
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::ADD_HL) | Some(OpCode::ADC_HL) | Some(OpCode::SUB_HL)
+            | Some(OpCode::SBC_HL) | Some(OpCode::CP_HL) | Some(OpCode::AND_HL)
+            | Some(OpCode::OR_HL) | Some(OpCode::XOR_HL) => {
+                self.address_bus = self.register_file.get_hl();
+                self.read_ram(ram);
+                self.tick_clock().await;
+
+                match op_code.unwrap() {
+                    OpCode::ADD_HL => self.add(self.data_bus, false),
+                    OpCode::ADC_HL => self.add(self.data_bus, true),
+                    OpCode::SUB_HL => self.sub(self.data_bus, false),
+                    OpCode::SBC_HL => self.sub(self.data_bus, true),
+                    OpCode::CP_HL => {
+                        self.compare(self.data_bus, false);
+                    }
+                    OpCode::AND_HL => self.and(self.data_bus),
+                    OpCode::OR_HL => self.or(self.data_bus),
+                    OpCode::XOR_HL => self.xor(self.data_bus),
+                    _ => {}
+                }
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::ADD_n) | Some(OpCode::ADC_n) | Some(OpCode::SUB_n)
+            | Some(OpCode::SBC_n) | Some(OpCode::CP_n) | Some(OpCode::AND_n)
+            | Some(OpCode::OR_n) | Some(OpCode::XOR_n) => {
+                self.read_ram(ram);
+                self.increase_PC();
+                self.tick_clock().await;
+                match op_code.unwrap() {
+                    OpCode::ADD_n => self.add(self.data_bus, false),
+                    OpCode::ADC_n => self.add(self.data_bus, true),
+                    OpCode::SUB_n => self.sub(self.data_bus, false),
+                    OpCode::SBC_n => self.sub(self.data_bus, true),
+                    OpCode::CP_n => {
+                        self.compare(self.data_bus, false);
+                    }
+                    OpCode::AND_n => self.and(self.data_bus),
+                    OpCode::OR_n => self.or(self.data_bus),
+                    OpCode::XOR_n => self.xor(self.data_bus),
+                    _ => {}
+                }
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::INC_r) | Some(OpCode::DEC_r) => {
+                let reg = ir & 0b0011_1000;
+                let (res, flags) = if op_code.unwrap() == OpCode::INC_r {
+                    ALU::increment(self.register_file.get(reg).unwrap())
+                } else {
+                    ALU::decrement(self.register_file.get(reg).unwrap())
+                };
+                self.register_file.set(reg, res).unwrap();
+                self.register_file.set_f(flags);
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::INC_HL) | Some(OpCode::DEC_HL) => {
+                self.address_bus = self.register_file.get_hl();
+                self.read_ram(ram);
+                self.tick_clock().await;
+                let (res, flags) = if op_code.unwrap() == OpCode::INC_HL {
+                    ALU::increment(self.data_bus)
+                } else {
+                    ALU::decrement(self.data_bus)
+                };
+                self.data_bus = res;
+                self.register_file.set_f(flags);
+                self.write_ram(ram);
+                self.tick_clock().await;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::NOP) => {
                 self.fetch_cycle(ram);
             }
             Some(x) => {
