@@ -1,12 +1,15 @@
 pub mod alu;
 pub mod opcodes;
 pub mod registers;
+pub mod snapshot;
 
 use crate::system::clock::SystemClock;
 use crate::system::ram::RAM;
 use alu::ALU;
 use opcodes::OpCode;
 use registers::{RegisterFile, RegisterName};
+use snapshot::SM83Snapshot;
+
 struct IDU {
     output: u16,
 }
@@ -44,6 +47,23 @@ impl SM83 {
             address_bus: 0,
             data_bus: 0,
         }
+    }
+
+    pub fn load_snapshot(&mut self, snapshot: SM83Snapshot) {
+        self.address_bus = snapshot.address_bus;
+        self.data_bus = snapshot.data_bus;
+        self.register_file.set_ir(snapshot.ir);
+        self.register_file.set_ie(snapshot.ie);
+        self.register_file.set_a(snapshot.a);
+        self.register_file.set_b(snapshot.b);
+        self.register_file.set_c(snapshot.c);
+        self.register_file.set_d(snapshot.d);
+        self.register_file.set_e(snapshot.e);
+        self.register_file.set_f(snapshot.f);
+        self.register_file.set_h(snapshot.h);
+        self.register_file.set_l(snapshot.l);
+        self.register_file.set_sp(snapshot.sp);
+        self.register_file.set_pc(snapshot.pc);
     }
 
     fn increase_PC(&mut self) {

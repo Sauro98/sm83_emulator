@@ -39,6 +39,7 @@ pub const LD_HL_SPe: u8 = 0xF8;
 pub const ADD_r_base: u8 = 0x80;
 pub const ADD_r_mask: u8 = 0xF8;
 pub const ADD_B: u8 = 0x80;
+pub const ADD_C: u8 = 0x81;
 pub const ADD_HL: u8 = 0x86;
 pub const ADD_n: u8 = 0xC6;
 pub const ADC_r_base: u8 = 0x88;
