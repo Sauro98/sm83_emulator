@@ -101,7 +101,7 @@ impl SM83 {
     }
 
     fn add(&mut self, val: u8, carry: bool) {
-        let (sum, flags) = if carry {
+        let (sum, flags) = if !carry {
             ALU::add(self.register_file.get_a(), val)
         } else {
             ALU::add3(
@@ -115,7 +115,7 @@ impl SM83 {
     }
 
     fn compare(&mut self, val: u8, carry: bool) -> u8 {
-        let (diff, flags) = if carry {
+        let (diff, flags) = if !carry {
             ALU::sub(self.register_file.get_a(), val)
         } else {
             ALU::sub3(
