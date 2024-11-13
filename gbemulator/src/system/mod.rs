@@ -1,8 +1,5 @@
-pub mod alu;
 pub mod clock;
-pub mod opcodes;
 pub mod ram;
-pub mod registers;
 pub mod sm83;
 
 pub struct System {

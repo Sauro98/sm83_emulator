@@ -1,8 +1,7 @@
-#[macro_use]
-use gbemulator::system::opcodes::{*};
-use gbemulator::system::ram::{self, RAM};
-use gbemulator::system::registers::RegisterName;
-use gbemulator::system::sm83::{self, SM83};
+use gbemulator::system::ram::{self};
+use gbemulator::system::sm83::opcodes::*;
+use gbemulator::system::sm83::registers::RegisterName;
+use gbemulator::system::sm83::{self};
 
 #[tokio::test]
 async fn test_LDrn() {

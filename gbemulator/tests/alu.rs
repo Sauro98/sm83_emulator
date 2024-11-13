@@ -1,4 +1,4 @@
-use gbemulator::system::alu::ALU;
+use gbemulator::system::sm83::alu::ALU;
 
 #[test]
 fn test_add() {

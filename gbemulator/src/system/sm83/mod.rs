@@ -1,10 +1,12 @@
-use std::os::windows::raw::SOCKET;
+pub mod alu;
+pub mod opcodes;
+pub mod registers;
 
-use crate::system::alu::ALU;
 use crate::system::clock::SystemClock;
-use crate::system::opcodes::OpCode;
 use crate::system::ram::RAM;
-use crate::system::registers::{RegisterFile, RegisterName};
+use alu::ALU;
+use opcodes::OpCode;
+use registers::{RegisterFile, RegisterName};
 struct IDU {
     output: u16,
 }
