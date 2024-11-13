@@ -1,4 +1,3 @@
-use gbemulator::system::ram;
 
 mod system;
 

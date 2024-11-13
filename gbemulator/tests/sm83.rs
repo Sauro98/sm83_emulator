@@ -1116,6 +1116,25 @@ async fn test_inc_r() {
 }
 
 #[tokio::test]
+async fn test_inc_hl() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, INC_HL).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    ram.set_at(0xEEEE, 11).unwrap();
+    let snapshot = SM83Snapshot::new().with_hl(0xEEEE);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x00);
+    assert_eq!(*ram.get_at(0xEEEE).unwrap(), 12);
+    assert_eq!(cpu.cycle_count, 3);
+}
+
+#[tokio::test]
 async fn test_dec_r() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
@@ -1130,5 +1149,296 @@ async fn test_dec_r() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
     assert_eq!(cpu.get_register(RegisterName::B), 0);
     assert_eq!(cpu.get_register(RegisterName::F), 0xE0);
+    assert_eq!(cpu.cycle_count, 1);
+}
+
+#[tokio::test]
+async fn test_dec_hl() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, DEC_HL).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    ram.set_at(0xEEEE, 11).unwrap();
+    let snapshot = SM83Snapshot::new().with_hl(0xEEEE);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x60);
+    assert_eq!(*ram.get_at(0xEEEE).unwrap(), 10);
+    assert_eq!(cpu.cycle_count, 3);
+}
+
+#[tokio::test]
+async fn test_and_r() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, AND_B).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(0b0010).with_b(0b0110);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::A), 0b0010);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x20);
+    assert_eq!(cpu.cycle_count, 1);
+}
+
+#[tokio::test]
+async fn test_and_hl() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, AND_HL).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    ram.set_at(0xABCD, 0x05).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(7).with_hl(0xABCD);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::A), 5);
+    assert_eq!(cpu.cycle_count, 2);
+}
+
+#[tokio::test]
+async fn test_and_n() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, AND_n).unwrap();
+    ram.set_at(0x0001, 0x05).unwrap();
+    ram.set_at(0x0002, 0xCD).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(254);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
+    assert_eq!(cpu.get_register(RegisterName::A), 4);
+    assert_eq!(cpu.cycle_count, 2);
+}
+
+#[tokio::test]
+async fn test_or_r() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, OR_B).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(0b0010).with_b(0b0110);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::A), 0b0110);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x00);
+    assert_eq!(cpu.cycle_count, 1);
+}
+
+#[tokio::test]
+async fn test_or_hl() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, OR_HL).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    ram.set_at(0xABCD, 0x05).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(7).with_hl(0xABCD);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::A), 7);
+    assert_eq!(cpu.cycle_count, 2);
+}
+
+#[tokio::test]
+async fn test_or_n() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, OR_n).unwrap();
+    ram.set_at(0x0001, 0x05).unwrap();
+    ram.set_at(0x0002, 0xCD).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(254);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
+    assert_eq!(cpu.get_register(RegisterName::A), 255);
+    assert_eq!(cpu.cycle_count, 2);
+}
+
+#[tokio::test]
+async fn test_xor_r() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, XOR_B).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(0b0010).with_b(0b0110);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::A), 0b0100);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x00);
+    assert_eq!(cpu.cycle_count, 1);
+}
+
+#[tokio::test]
+async fn test_xor_hl() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, XOR_HL).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    ram.set_at(0xABCD, 0x05).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(7).with_hl(0xABCD);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::A), 2);
+    assert_eq!(cpu.cycle_count, 2);
+}
+
+#[tokio::test]
+async fn test_xor_n() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, XOR_n).unwrap();
+    ram.set_at(0x0001, 0x05).unwrap();
+    ram.set_at(0x0002, 0xCD).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(254);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
+    assert_eq!(cpu.get_register(RegisterName::A), 251);
+    assert_eq!(cpu.cycle_count, 2);
+}
+
+#[tokio::test]
+async fn test_ccf() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, CCF).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    let snapshot = SM83Snapshot::new().with_f(0xF0);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x80);
+    assert_eq!(cpu.cycle_count, 1);
+
+    let snapshot = SM83Snapshot::new().with_f(0xE0);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x90);
+    assert_eq!(cpu.cycle_count, 1);
+
+    let snapshot = SM83Snapshot::new().with_f(0x00);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x10);
+    assert_eq!(cpu.cycle_count, 1);
+}
+
+#[tokio::test]
+async fn test_scf() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, SCF).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    let snapshot = SM83Snapshot::new().with_f(0xF0);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x90);
+    assert_eq!(cpu.cycle_count, 1);
+
+    let snapshot = SM83Snapshot::new().with_f(0xE0);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x90);
+    assert_eq!(cpu.cycle_count, 1);
+
+    let snapshot = SM83Snapshot::new().with_f(0x00);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x10);
+    assert_eq!(cpu.cycle_count, 1);
+}
+
+#[tokio::test]
+async fn test_daa() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, DAA).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(0x7D).with_f(0x00);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::A), 0x83);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x00);
+    assert_eq!(cpu.cycle_count, 1);
+}
+
+#[tokio::test]
+async fn test_cpl() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x0000, CPL).unwrap();
+    ram.set_at(0x0001, 0xCD).unwrap();
+    let snapshot = SM83Snapshot::new().with_a(0b1010_0101).with_f(0x00);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.fetch_cycle(&mut ram);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
+    assert_eq!(cpu.get_register(RegisterName::A), 0b0101_1010);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x60);
     assert_eq!(cpu.cycle_count, 1);
 }

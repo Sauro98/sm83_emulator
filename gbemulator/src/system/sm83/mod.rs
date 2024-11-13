@@ -507,6 +507,34 @@ impl SM83 {
                 self.tick_clock().await;
                 self.fetch_cycle(ram);
             }
+            Some(OpCode::CCF) => {
+                self.register_file.unset_half_carry_flag();
+                self.register_file.unset_negative_flag();
+                self.register_file.flip_carry_flag();
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::SCF) => {
+                self.register_file.unset_half_carry_flag();
+                self.register_file.unset_negative_flag();
+                self.register_file.set_carry_flag();
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::DAA) => {
+                let (res, flags) = ALU::decimal_adjust(
+                    self.register_file.get_a(),
+                    self.register_file.get_carry_flag() == 1,
+                    self.register_file.get_half_carry_flag() == 1,
+                );
+                self.register_file.set_a(res);
+                self.register_file.set_f(flags);
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::CPL) => {
+                self.register_file.set_a(!self.register_file.get_a());
+                self.register_file.set_negative_flag();
+                self.register_file.set_half_carry_flag();
+                self.fetch_cycle(ram);
+            }
             Some(OpCode::NOP) => {
                 self.fetch_cycle(ram);
             }

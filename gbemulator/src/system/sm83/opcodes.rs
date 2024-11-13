@@ -84,6 +84,10 @@ pub const XOR_r_mask: u8 = ADD_r_mask;
 pub const XOR_B: u8 = 0xA8;
 pub const XOR_HL: u8 = 0xAE;
 pub const XOR_n: u8 = 0xEE;
+pub const CCF: u8 = 0x3F;
+pub const SCF: u8 = 0x37;
+pub const DAA: u8 = 0x27;
+pub const CPL: u8 = 0x2F;
 
 // misc
 pub const NOP: u8 = 0x00;
@@ -145,6 +149,10 @@ pub enum OpCode {
     XOR_HL,
     XOR_n,
     NOP,
+    CCF,
+    SCF,
+    DAA,
+    CPL,
 }
 
 impl OpCode {
@@ -223,6 +231,14 @@ impl OpCode {
             return Some(OpCode::OR_n);
         } else if ir == XOR_n {
             return Some(OpCode::XOR_n);
+        } else if ir == CCF {
+            return Some(OpCode::CCF);
+        } else if ir == SCF {
+            return Some(OpCode::SCF);
+        } else if ir == DAA {
+            return Some(OpCode::DAA);
+        } else if ir == CPL {
+            return Some(OpCode::CPL);
         } else if ir & PUSH_rr_mask == PUSH_rr_base {
             return Some(OpCode::PUSH_rr);
         } else if ir & POP_rr_mask == POP_rr_base {

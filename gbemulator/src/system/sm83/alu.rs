@@ -73,4 +73,19 @@ impl ALU {
         }
         (res, flags)
     }
+
+    pub fn decimal_adjust(v: u8, carry: bool, half_carry: bool) -> (u8, u8) {
+        let upper_nibble = (v & 0xF0) >> 4;
+        let lower_nibble = v & 0x0F;
+        let mut adj = 0x00;
+        if lower_nibble > 9 || half_carry {
+            adj |= 0x06;
+        }
+        if upper_nibble > 9 || carry {
+            adj |= 0x60;
+        }
+        let (res, mut flags) = Self::add(v, adj);
+        flags &= 0b1101_1111; // unset half carry flag
+        (res, flags)
+    }
 }

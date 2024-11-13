@@ -72,3 +72,33 @@ fn test_decrement() {
     assert_eq!(r, 0b0000_0011);
     assert_eq!(f, 0b0110_0000);
 }
+
+#[test]
+fn test_decimal_adjust() {
+    let v1 = 0x38;
+    let v2 = 0x45;
+    let (res, flags) = ALU::add(v1, v2);
+    assert_eq!(res, 0x7D);
+    assert_eq!(flags, 0);
+    let (res, flags) = ALU::decimal_adjust(res, flags & 0x10 > 0, flags & 0x20 > 0);
+    assert_eq!(res, 0x83);
+    assert_eq!(flags, 0);
+
+    let v1 = 0x11;
+    let v2 = 0x22;
+    let (res, flags) = ALU::add(v1, v2);
+    assert_eq!(res, 0x33);
+    assert_eq!(flags, 0);
+    let (res, flags) = ALU::decimal_adjust(res, flags & 0x10 > 0, flags & 0x20 > 0);
+    assert_eq!(res, 0x33);
+    assert_eq!(flags, 0);
+
+    let v1 = 0x18;
+    let v2 = 0x08;
+    let (res, flags) = ALU::add(v1, v2);
+    assert_eq!(res, 0x20);
+    assert_eq!(flags, 0x20);
+    let (res, flags) = ALU::decimal_adjust(res, flags & 0x10 > 0, flags & 0x20 > 0);
+    assert_eq!(res, 0x26);
+    assert_eq!(flags, 0);
+}

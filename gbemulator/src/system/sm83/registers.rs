@@ -333,4 +333,11 @@ impl RegisterFile {
     pub fn unset_carry_flag(&mut self) {
         self.AF.write_second(self.AF.second() & 0xEF);
     }
+
+    pub fn flip_carry_flag(&mut self) {
+        // xor with the carry bit mask:
+        // the other bits are left untouched since 1^0 = 1 and 0^0=0
+        // the carry bit is flipped since 1^0 = 1 and 1^1=0
+        self.AF.write_second(self.AF.second() ^ 0x10);
+    }
 }
