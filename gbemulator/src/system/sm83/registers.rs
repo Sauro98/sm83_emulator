@@ -235,21 +235,19 @@ impl RegisterFile {
     }
 
     pub fn get(&self, reg: u8) -> Result<u8, std::string::String> {
-        if reg == 0x00 {
+        if reg == 0x07 {
+            Ok(self.get_a())
+        } else if reg == 0x00 {
             Ok(self.get_b())
         } else if reg == 0x01 {
             Ok(self.get_c())
         } else if reg == 0x02 {
-            Ok(self.get_a())
-        } else if reg == 0x03 {
-            Ok(self.get_f())
-        } else if reg == 0x04 {
             Ok(self.get_d())
-        } else if reg == 0x05 {
+        } else if reg == 0x03 {
             Ok(self.get_e())
-        } else if reg == 0x06 {
+        } else if reg == 0x04 {
             Ok(self.get_h())
-        } else if reg == 0x07 {
+        } else if reg == 0x05 {
             Ok(self.get_l())
         } else {
             Err(format!("unrecognized register {}", u8::to_string(&reg)))
@@ -260,11 +258,11 @@ impl RegisterFile {
         if reg == 0x00 {
             Ok(self.get_bc())
         } else if reg == 0x01 {
-            Ok(self.get_af())
-        } else if reg == 0x02 {
             Ok(self.get_de())
-        } else if reg == 0x03 {
+        } else if reg == 0x02 {
             Ok(self.get_hl())
+        } else if reg == 0x03 {
+            Ok(self.get_sp())
         } else {
             Err(format!("unrecognized register {}", u8::to_string(&reg)))
         }
