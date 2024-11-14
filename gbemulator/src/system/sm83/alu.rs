@@ -88,4 +88,14 @@ impl ALU {
         flags &= 0b1101_1111; // unset half carry flag
         (res, flags)
     }
+
+    pub fn add_16(v1: u16, v2: u16) -> (u16, u8) {
+        let lsb_v1 = (v1 & 0x00FF) as u8;
+        let lsb_v2 = (v2 & 0x00FF) as u8;
+        let msb_v1 = ((v1 & 0xFF00) >> 8) as u8;
+        let msb_v2 = ((v2 & 0xFF00) >> 8) as u8;
+        let (res_lsb, flags) = Self::add(lsb_v1, lsb_v2);
+        let (res_msb, flags) = Self::add3(msb_v1, msb_v2, (flags & 0x10) >> 4);
+        (((res_msb as u16) << 8) | (res_lsb as u16), flags)
+    }
 }

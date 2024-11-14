@@ -88,6 +88,17 @@ pub const CCF: u8 = 0x3F;
 pub const SCF: u8 = 0x37;
 pub const DAA: u8 = 0x27;
 pub const CPL: u8 = 0x2F;
+// 16bit arithmetic instructions
+pub const INC_rr_base: u8 = 0x03;
+pub const INC_rr_mask: u8 = 0b1100_1111;
+pub const INC_BC: u8 = 0x03;
+pub const DEC_rr_base: u8 = 0x0B;
+pub const DEC_rr_mask: u8 = 0b1100_1111;
+pub const DEC_BC: u8 = 0x0B;
+pub const ADD_HL_rr_base: u8 = 0x09;
+pub const ADD_HL_rr_mask: u8 = 0b1100_1111;
+pub const ADD_HL_BC: u8 = 0x09;
+pub const ADD_SP_e: u8 = 0xE8;
 
 // misc
 pub const NOP: u8 = 0x00;
@@ -153,6 +164,10 @@ pub enum OpCode {
     SCF,
     DAA,
     CPL,
+    INC_rr,
+    DEC_rr,
+    ADD_HL_rr,
+    ADD_SP_e,
 }
 
 impl OpCode {
@@ -239,6 +254,8 @@ impl OpCode {
             return Some(OpCode::DAA);
         } else if ir == CPL {
             return Some(OpCode::CPL);
+        } else if ir == ADD_SP_e {
+            return Some(OpCode::ADD_SP_e);
         } else if ir & PUSH_rr_mask == PUSH_rr_base {
             return Some(OpCode::PUSH_rr);
         } else if ir & POP_rr_mask == POP_rr_base {
@@ -263,6 +280,12 @@ impl OpCode {
             return Some(OpCode::OR_r);
         } else if ir & XOR_r_mask == XOR_r_base {
             return Some(OpCode::XOR_r);
+        } else if ir & INC_rr_mask == INC_rr_base {
+            return Some(OpCode::INC_rr);
+        } else if ir & DEC_rr_mask == DEC_rr_base {
+            return Some(OpCode::DEC_rr);
+        } else if ir & ADD_HL_rr_mask == ADD_HL_rr_base {
+            return Some(OpCode::ADD_HL_rr);
         } else if (ir >> 6) & 0x03 == 0x00 && ir & 0x07 == 0x06 {
             return Some(OpCode::LD_r_n);
         } else if (ir >> 6) & 0x03 == 0x01 {
