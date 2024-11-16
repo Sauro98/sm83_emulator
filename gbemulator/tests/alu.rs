@@ -102,3 +102,39 @@ fn test_decimal_adjust() {
     assert_eq!(res, 0x26);
     assert_eq!(flags, 0);
 }
+
+#[test]
+fn test_rotate() {
+    let v = 0b1000_0001;
+    let (res, flags) = ALU::rotate_left(v, 0);
+    assert_eq!(res, 0b0000_0010);
+    assert_eq!(flags, 0x10);
+    let (res, flags) = ALU::rotate_left(res, flags >> 4);
+    assert_eq!(res, 0b0000_0101);
+    assert_eq!(flags, 0x00);
+
+    let (res, flags) = ALU::rotate_right(v, 0);
+    assert_eq!(res, 0b0100_0000);
+    assert_eq!(flags, 0x10);
+    let (res, flags) = ALU::rotate_right(res, flags >> 4);
+    assert_eq!(res, 0b1010_0000);
+    assert_eq!(flags, 0x00);
+}
+
+#[test]
+fn test_rotate_circular() {
+    let v = 0b1000_0001;
+    let (res, flags) = ALU::rotate_left_circular(v);
+    assert_eq!(res, 0b0000_0011);
+    assert_eq!(flags, 0x10);
+    let (res, flags) = ALU::rotate_left_circular(res);
+    assert_eq!(res, 0b0000_0110);
+    assert_eq!(flags, 0x00);
+
+    let (res, flags) = ALU::rotate_right_circular(v);
+    assert_eq!(res, 0b1100_0000);
+    assert_eq!(flags, 0x10);
+    let (res, flags) = ALU::rotate_right_circular(res);
+    assert_eq!(res, 0b0110_0000);
+    assert_eq!(flags, 0x00);
+}

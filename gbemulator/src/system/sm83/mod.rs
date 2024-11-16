@@ -8,7 +8,7 @@ use crate::system::clock::SystemClock;
 use crate::system::ram::RAM;
 use alu::ALU;
 use idu::IDU;
-use opcodes::OpCode;
+use opcodes::{CBPrefixOpCode, OpCode};
 use registers::{RegisterFile, RegisterName};
 use snapshot::SM83Snapshot;
 
@@ -584,6 +584,107 @@ impl SM83 {
                 self.fetch_cycle(ram);
             }
             Some(OpCode::NOP) => {
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::RLCA) | Some(OpCode::RLA) | Some(OpCode::RRA) | Some(OpCode::RRCA) => {
+                let (res, flags) = match op_code.unwrap() {
+                    OpCode::RLA => ALU::rotate_left(
+                        self.register_file.get_a(),
+                        self.register_file.get_carry_flag(),
+                    ),
+                    OpCode::RLCA => ALU::rotate_left_circular(self.register_file.get_a()),
+                    OpCode::RRA => ALU::rotate_right(
+                        self.register_file.get_a(),
+                        self.register_file.get_carry_flag(),
+                    ),
+                    OpCode::RRCA => ALU::rotate_right_circular(self.register_file.get_a()),
+                    _ => (0, 0),
+                };
+                self.register_file.set_a(res);
+                self.register_file.set_f(flags);
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::CB_PREFIX) => {
+                self.fetch_cycle(ram);
+                self.tick_clock().await;
+                let cb_ir = self.register_file.get_ir();
+                match CBPrefixOpCode::from_ir(cb_ir) {
+                    Some(CBPrefixOpCode::RLC_r) => {
+                        let reg = cb_ir & 0x07;
+                        let (res, flags) =
+                            ALU::rotate_left_circular(self.register_file.get(reg).unwrap());
+                        self.register_file.set(reg, res).unwrap();
+                        self.register_file.set_f(flags);
+                    }
+                    Some(CBPrefixOpCode::RLC_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let (res, flags) = ALU::rotate_left_circular(self.data_bus);
+                        self.data_bus = res;
+                        self.write_ram(ram);
+                        self.register_file.set_f(flags);
+                        self.tick_clock().await
+                    }
+                    Some(CBPrefixOpCode::RRC_r) => {
+                        let reg = cb_ir & 0x07;
+                        let (res, flags) =
+                            ALU::rotate_right_circular(self.register_file.get(reg).unwrap());
+                        self.register_file.set(reg, res).unwrap();
+                        self.register_file.set_f(flags);
+                    }
+                    Some(CBPrefixOpCode::RRC_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let (res, flags) = ALU::rotate_right_circular(self.data_bus);
+                        self.data_bus = res;
+                        self.write_ram(ram);
+                        self.register_file.set_f(flags);
+                        self.tick_clock().await
+                    }
+                    Some(CBPrefixOpCode::RL_r) => {
+                        let reg = cb_ir & 0x07;
+                        let (res, flags) = ALU::rotate_left(
+                            self.register_file.get(reg).unwrap(),
+                            self.register_file.get_carry_flag(),
+                        );
+                        self.register_file.set(reg, res).unwrap();
+                        self.register_file.set_f(flags);
+                    }
+                    Some(CBPrefixOpCode::RL_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let (res, flags) =
+                            ALU::rotate_left(self.data_bus, self.register_file.get_carry_flag());
+                        self.data_bus = res;
+                        self.write_ram(ram);
+                        self.register_file.set_f(flags);
+                        self.tick_clock().await
+                    }
+                    Some(CBPrefixOpCode::RR_r) => {
+                        let reg = cb_ir & 0x07;
+                        let (res, flags) = ALU::rotate_right(
+                            self.register_file.get(reg).unwrap(),
+                            self.register_file.get_carry_flag(),
+                        );
+                        self.register_file.set(reg, res).unwrap();
+                        self.register_file.set_f(flags);
+                    }
+                    Some(CBPrefixOpCode::RR_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let (res, flags) =
+                            ALU::rotate_right(self.data_bus, self.register_file.get_carry_flag());
+                        self.data_bus = res;
+                        self.write_ram(ram);
+                        self.register_file.set_f(flags);
+                        self.tick_clock().await
+                    }
+                    _ => (),
+                }
                 self.fetch_cycle(ram);
             }
             Some(x) => {

@@ -99,6 +99,12 @@ pub const ADD_HL_rr_base: u8 = 0x09;
 pub const ADD_HL_rr_mask: u8 = 0b1100_1111;
 pub const ADD_HL_BC: u8 = 0x09;
 pub const ADD_SP_e: u8 = 0xE8;
+// rotate shift and bit operations
+pub const RLCA: u8 = 0x07;
+pub const RRCA: u8 = 0x0F;
+pub const RLA: u8 = 0x17;
+pub const RRA: u8 = 0x1F;
+pub const CB_PREFIX: u8 = 0xCB;
 
 // misc
 pub const NOP: u8 = 0x00;
@@ -168,6 +174,11 @@ pub enum OpCode {
     DEC_rr,
     ADD_HL_rr,
     ADD_SP_e,
+    RLCA,
+    RRCA,
+    RLA,
+    RRA,
+    CB_PREFIX,
 }
 
 impl OpCode {
@@ -256,6 +267,16 @@ impl OpCode {
             return Some(OpCode::CPL);
         } else if ir == ADD_SP_e {
             return Some(OpCode::ADD_SP_e);
+        } else if ir == RLCA {
+            return Some(OpCode::RLCA);
+        } else if ir == RRCA {
+            return Some(OpCode::RRCA);
+        } else if ir == RLA {
+            return Some(OpCode::RLA);
+        } else if ir == RRA {
+            return Some(OpCode::RRA);
+        } else if ir == CB_PREFIX {
+            return Some(OpCode::CB_PREFIX);
         } else if ir & PUSH_rr_mask == PUSH_rr_base {
             return Some(OpCode::PUSH_rr);
         } else if ir & POP_rr_mask == POP_rr_base {
@@ -302,6 +323,135 @@ impl OpCode {
             return Some(OpCode::LD_rr_nn);
         }
 
+        return None;
+    }
+}
+
+#[derive(Debug, PartialEq)]
+#[allow(non_camel_case_types)]
+pub enum CBPrefixOpCode {
+    RLC_r,
+    RLC_HL,
+    RRC_r,
+    RRC_HL,
+    RL_r,
+    RL_HL,
+    RR_r,
+    RR_HL,
+    SLA_r,
+    SLA_HL,
+    SRA_r,
+    SRA_HL,
+    SWAP_r,
+    SWAP_HL,
+    SRL_r,
+    SRL_HL,
+    BIT_b_r,
+    BIT_b_HL,
+    RES_b_r,
+    RES_b_HL,
+    SET_b_r,
+    SET_b_HL,
+}
+
+pub const RLC_R_BASE: u8 = 0x00;
+pub const RLC_R_MASK: u8 = 0b1111_1000;
+pub const RLC_B: u8 = 0x00;
+pub const RLC_HL: u8 = 0x06;
+pub const RRC_R_BASE: u8 = 0x08;
+pub const RRC_R_MASK: u8 = 0b1111_1000;
+pub const RRC_B: u8 = 0x08;
+pub const RRC_HL: u8 = 0x0E;
+pub const RL_R_BASE: u8 = 0x10;
+pub const RL_R_MASK: u8 = 0b1111_1000;
+pub const RL_B: u8 = 0x10;
+pub const RL_HL: u8 = 0x16;
+pub const RR_R_BASE: u8 = 0x18;
+pub const RR_R_MASK: u8 = 0b1111_1000;
+pub const RR_B: u8 = 0x18;
+pub const RR_HL: u8 = 0x1E;
+pub const SLA_R_BASE: u8 = 0x20;
+pub const SLA_R_MASK: u8 = 0b1111_1000;
+pub const SLA_B: u8 = 0x20;
+pub const SLA_HL: u8 = 0x26;
+pub const SRA_R_BASE: u8 = 0x28;
+pub const SRA_R_MASK: u8 = 0b1111_1000;
+pub const SRA_B: u8 = 0x28;
+pub const SRA_HL: u8 = 0x2E;
+pub const SWAP_R_BASE: u8 = 0x30;
+pub const SWAP_R_MASK: u8 = 0b1111_1000;
+pub const SWAP_B: u8 = 0x30;
+pub const SWAP_HL: u8 = 0x36;
+pub const SRL_R_BASE: u8 = 0x38;
+pub const SRL_R_MASK: u8 = 0b1111_1000;
+pub const SRL_B: u8 = 0x38;
+pub const SRL_HL: u8 = 0x3E;
+pub const BIT_B_R_BASE: u8 = 0x40;
+pub const BIT_B_R_MASK: u8 = 0b1100_0000;
+pub const BIT_0_B: u8 = 0x40;
+pub const BIT_B_HL_BASE: u8 = 0x46;
+pub const BIT_B_HL_MASK: u8 = 0b11000111;
+pub const BIT_0_HL: u8 = 0x46;
+pub const RES_B_R_BASE: u8 = 0x80;
+pub const RES_B_R_MASK: u8 = 0b1100_0000;
+pub const RES_0_B: u8 = 0x80;
+pub const RES_B_HL_BASE: u8 = 0x86;
+pub const RES_B_HL_MASK: u8 = 0b11000111;
+pub const RES_0_HL: u8 = 0x86;
+pub const SET_B_R_BASE: u8 = 0xC0;
+pub const SET_B_R_MASK: u8 = 0b1100_0000;
+pub const SET_0_B: u8 = 0xC0;
+pub const SET_B_HL_BASE: u8 = 0xC6;
+pub const SET_B_HL_MASK: u8 = 0b11000111;
+pub const SET_0_HL: u8 = 0xC6;
+
+impl CBPrefixOpCode {
+    pub fn from_ir(ir: u8) -> Option<CBPrefixOpCode> {
+        if ir == RLC_HL {
+            return Some(Self::RLC_HL);
+        } else if ir == RRC_HL {
+            return Some(Self::RRC_HL);
+        } else if ir == RL_HL {
+            return Some(Self::RL_HL);
+        } else if ir == RR_HL {
+            return Some(Self::RR_HL);
+        } else if ir == SLA_HL {
+            return Some(Self::SLA_HL);
+        } else if ir == SRA_HL {
+            return Some(Self::SRA_HL);
+        } else if ir == SWAP_HL {
+            return Some(Self::SWAP_HL);
+        } else if ir == SRL_HL {
+            return Some(Self::SRL_HL);
+        } else if ir & RLC_R_MASK == RLC_R_BASE {
+            return Some(Self::RLC_r);
+        } else if ir & RRC_R_MASK == RRC_R_BASE {
+            return Some(Self::RRC_r);
+        } else if ir & RL_R_MASK == RL_R_BASE {
+            return Some(Self::RL_r);
+        } else if ir & RR_R_MASK == RR_R_BASE {
+            return Some(Self::RR_r);
+        } else if ir & SLA_R_MASK == SLA_R_BASE {
+            return Some(Self::SLA_r);
+        } else if ir & SRA_R_MASK == SRA_R_BASE {
+            return Some(Self::SRA_r);
+        } else if ir & SWAP_R_MASK == SWAP_R_BASE {
+            return Some(Self::SWAP_r);
+        } else if ir & SRL_R_MASK == SRL_R_BASE {
+            return Some(Self::SRL_r);
+        } else if ir & BIT_B_R_MASK == BIT_B_R_BASE {
+            return Some(Self::BIT_b_r);
+        } else if ir & BIT_B_HL_MASK == BIT_B_HL_BASE {
+            return Some(Self::BIT_b_HL);
+        } else if ir & SET_B_R_MASK == SET_B_R_BASE {
+            return Some(Self::SET_b_r);
+        } else if ir & SET_B_HL_MASK == SET_B_HL_BASE {
+            return Some(Self::SET_b_HL);
+        } else if ir & RES_B_R_MASK == RES_B_R_BASE {
+            return Some(Self::RES_b_r);
+        } else if ir & RES_B_HL_MASK == RES_B_HL_BASE {
+            return Some(Self::RES_b_HL);
+        }
         return None;
     }
 }

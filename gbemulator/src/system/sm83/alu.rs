@@ -89,13 +89,49 @@ impl ALU {
         (res, flags)
     }
 
-    pub fn add_16(v1: u16, v2: u16) -> (u16, u8) {
-        let lsb_v1 = (v1 & 0x00FF) as u8;
-        let lsb_v2 = (v2 & 0x00FF) as u8;
-        let msb_v1 = ((v1 & 0xFF00) >> 8) as u8;
-        let msb_v2 = ((v2 & 0xFF00) >> 8) as u8;
-        let (res_lsb, flags) = Self::add(lsb_v1, lsb_v2);
-        let (res_msb, flags) = Self::add3(msb_v1, msb_v2, (flags & 0x10) >> 4);
-        (((res_msb as u16) << 8) | (res_lsb as u16), flags)
+    pub fn rotate_left(v: u8, carry: u8) -> (u8, u8) {
+        let mut res = ((v & 0x7F) << 1) & 0xFE; // remove last bit, rotate left and clear last bit
+        let mut flags = 0;
+        if v & 0x80 > 0 {
+            // if last bit set, set carry
+            flags = 0x10;
+        }
+        // add prev carry bit if it was one
+        res = res | carry;
+        (res, flags)
+    }
+
+    pub fn rotate_left_circular(v: u8) -> (u8, u8) {
+        let mut res = ((v & 0x7F) << 1) & 0xFE; // remove last bit, rotate left and clear last bit
+        let mut flags = 0;
+        if v & 0x80 > 0 {
+            // if last bit set, set both carry and first bit
+            flags = 0x10;
+            res |= 0x01;
+        }
+        (res, flags)
+    }
+
+    pub fn rotate_right(v: u8, carry: u8) -> (u8, u8) {
+        let mut res = ((v & 0xFE) >> 1) & 0x7F; // remove first bit, rotate right and clear first bit
+        let mut flags = 0;
+        if v & 0x01 > 0 {
+            // if first bit set, set carry
+            flags = 0x10;
+        }
+        // add prev carry bit if it was one
+        res = res | (carry << 7);
+        (res, flags)
+    }
+
+    pub fn rotate_right_circular(v: u8) -> (u8, u8) {
+        let mut res = ((v & 0xFE) >> 1) & 0x7F; // remove first bit, rotate right and clear first bit
+        let mut flags = 0;
+        if v & 0x01 > 0 {
+            // if first bit set, set both carry and last bit
+            flags = 0x10;
+            res |= 0x80;
+        }
+        (res, flags)
     }
 }
