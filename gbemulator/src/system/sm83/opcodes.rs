@@ -127,6 +127,10 @@ pub const RETI: u8 = 0xD9;
 pub const RST_N_BASE: u8 = 0xC7;
 pub const RST_N_MASK: u8 = 0b1100_0111;
 pub const RST_18: u8 = 0xDF;
+pub const DI: u8 = 0xF3;
+pub const EI: u8 = 0xFB;
+pub const HALT: u8 = 0x76;
+pub const STOP: u8 = 0x10;
 
 // misc
 pub const NOP: u8 = 0x00;
@@ -212,6 +216,10 @@ pub enum OpCode {
     RET_CC,
     RETI,
     RST_N,
+    DI,
+    EI,
+    HALT,
+    STOP,
 }
 
 impl OpCode {
@@ -322,6 +330,14 @@ impl OpCode {
             return Some(OpCode::RET);
         } else if ir == RETI {
             return Some(OpCode::RETI);
+        } else if ir == DI {
+            return Some(OpCode::DI);
+        } else if ir == EI {
+            return Some(OpCode::EI);
+        } else if ir == HALT {
+            return Some(OpCode::HALT);
+        } else if ir == STOP {
+            return Some(OpCode::STOP);
         } else if ir & PUSH_rr_mask == PUSH_rr_base {
             return Some(OpCode::PUSH_rr);
         } else if ir & POP_rr_mask == POP_rr_base {

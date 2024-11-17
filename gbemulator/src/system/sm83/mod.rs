@@ -58,6 +58,11 @@ impl SM83 {
         self.ime
     }
 
+    pub fn reset(&mut self, ram: &RAM) {
+        self.register_file.set_pc(0x00);
+        self.fetch_cycle(ram);
+    }
+
     fn idu_increment(&mut self) {
         let res = IDU::increment(self.address_bus);
         self.address_bus = res;
@@ -931,6 +936,20 @@ impl SM83 {
                 self.register_file.set_pc(page as u16);
                 self.tick_clock().await;
                 self.fetch_cycle(ram);
+            }
+            Some(OpCode::DI) => {
+                self.ime = false;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::EI) => {
+                self.ime = true;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::HALT) => {
+                self.fetch_cycle(ram);
+                self.address_bus = self.register_file.get_pc();
+                self.idu_decrement();
+                self.register_file.set_pc(self.address_bus);
             }
             Some(x) => {
                 panic!("OPCODE not yet implemented {:?}", x);

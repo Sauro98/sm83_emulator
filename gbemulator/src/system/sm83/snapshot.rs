@@ -13,6 +13,7 @@ pub struct SM83Snapshot {
     pub l: u8,
     pub sp: u16,
     pub pc: u16,
+    pub ime: bool,
 }
 
 impl SM83Snapshot {
@@ -32,7 +33,13 @@ impl SM83Snapshot {
             l: 0,
             sp: 0,
             pc: 0,
+            ime: false,
         }
+    }
+
+    pub fn with_ime(mut self, v: bool) -> Self {
+        self.ime = v;
+        self
     }
 
     pub fn with_address_bus(mut self, v: u16) -> Self {
