@@ -20,6 +20,7 @@ pub struct SM83 {
     register_file: RegisterFile,
     address_bus: u16,
     data_bus: u8,
+    ime: bool,
 }
 
 impl SM83 {
@@ -32,6 +33,7 @@ impl SM83 {
             register_file: RegisterFile::new(),
             address_bus: 0,
             data_bus: 0,
+            ime: false,
         }
     }
 
@@ -50,6 +52,10 @@ impl SM83 {
         self.register_file.set_l(snapshot.l);
         self.register_file.set_sp(snapshot.sp);
         self.register_file.set_pc(snapshot.pc);
+    }
+
+    pub fn interrupt_enabled(&self) -> bool {
+        self.ime
     }
 
     fn idu_increment(&mut self) {
@@ -146,6 +152,30 @@ impl SM83 {
         self.register_file.set_f(flags);
     }
 
+    fn code_to_condition(&self, code: u8) -> bool {
+        match code {
+            0b00 => self.register_file.get_zero_flag() == 0,
+            0b01 => self.register_file.get_zero_flag() > 0,
+            0b10 => self.register_file.get_carry_flag() == 0,
+            0b11 => self.register_file.get_carry_flag() > 0,
+            _ => false,
+        }
+    }
+
+    fn code_to_page_memory(&self, code: u8) -> u8 {
+        match code {
+            0b000 => 0x00,
+            0b001 => 0x08,
+            0b010 => 0x10,
+            0b011 => 0x18,
+            0b100 => 0x20,
+            0b101 => 0x28,
+            0b110 => 0x30,
+            0b111 => 0x38,
+            _ => panic!("unrecognized page address {:b}", code),
+        }
+    }
+
     async fn read_16b_ram(&mut self, ram: &RAM) -> u16 {
         self.read_ram(ram);
         let value = self.data_bus as u16;
@@ -176,7 +206,7 @@ impl SM83 {
 
         match op_code {
             None => {
-                println!("Unrecognized OP CODE {}", ir);
+                panic!("Unrecognized OP CODE {:x}", ir);
             }
             Some(OpCode::LD_HL_n) => {
                 // read value from ram
@@ -798,8 +828,112 @@ impl SM83 {
                 }
                 self.fetch_cycle(ram);
             }
+            Some(OpCode::JP_NN) => {
+                let val = self.read_16b_ram(ram).await;
+                self.register_file.set_pc(val);
+                self.tick_clock().await;
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::JP_HL) => {
+                self.register_file.set_pc(self.register_file.get_hl());
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::JP_CC_NN) => {
+                let condition = self.code_to_condition((ir >> 3) & 0x03);
+                let val = self.read_16b_ram(ram).await;
+                if condition {
+                    self.register_file.set_pc(val);
+                    self.tick_clock().await;
+                }
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::JR_E) => {
+                self.read_ram(ram);
+                let val = self.data_bus;
+                self.increase_PC();
+                self.tick_clock().await;
+                let new_pc = ALU::add_16_signed(self.register_file.get_pc(), val);
+                self.tick_clock().await;
+                self.register_file.set_pc(new_pc);
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::JR_CC_E) => {
+                self.read_ram(ram);
+                let val = self.data_bus;
+                let condition = self.code_to_condition((ir >> 3) & 0x03);
+                self.increase_PC();
+                self.tick_clock().await;
+                if condition {
+                    let new_pc = ALU::add_16_signed(self.register_file.get_pc(), val);
+                    self.tick_clock().await;
+                    self.register_file.set_pc(new_pc);
+                }
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::CALL_NN) | Some(OpCode::CALL_CC_NN) => {
+                let val = self.read_16b_ram(ram).await;
+                let condition = if op_code.unwrap() == OpCode::CALL_CC_NN {
+                    self.code_to_condition((ir >> 3) & 0x03)
+                } else {
+                    true
+                };
+                if condition {
+                    self.push_stack();
+                    self.tick_clock().await;
+                    self.data_bus = ((self.register_file.get_pc() & 0xFF00) >> 8) as u8;
+                    self.write_ram(ram);
+                    self.push_stack();
+                    self.tick_clock().await;
+                    self.data_bus = (self.register_file.get_pc() & 0x00FF) as u8;
+                    self.write_ram(ram);
+                    self.register_file.set_pc(val);
+                    self.tick_clock().await;
+                }
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::RET) | Some(OpCode::RET_CC) | Some(OpCode::RETI) => {
+                let condition = if op_code == Some(OpCode::RET_CC) {
+                    self.tick_clock().await;
+                    self.code_to_condition((ir >> 3) & 0x03)
+                } else {
+                    true
+                };
+                if condition {
+                    self.address_bus = self.register_file.get_sp();
+                    self.read_ram(ram);
+                    let lsb = self.data_bus;
+                    self.pop_stack();
+                    self.tick_clock().await;
+                    self.read_ram(ram);
+                    let msb = self.data_bus;
+                    self.pop_stack();
+                    self.tick_clock().await;
+                    self.register_file
+                        .set_pc(((msb as u16) << 8) | (lsb as u16));
+                    self.tick_clock().await;
+                }
+                if op_code == Some(OpCode::RETI) {
+                    self.ime = true;
+                }
+                self.fetch_cycle(ram);
+            }
+            Some(OpCode::RST_N) => {
+                let code = (ir >> 3) & 0x07;
+                let page = self.code_to_page_memory(code);
+                self.push_stack();
+                self.tick_clock().await;
+                self.data_bus = ((self.register_file.get_pc() & 0xFF00) >> 8) as u8;
+                self.write_ram(ram);
+                self.push_stack();
+                self.tick_clock().await;
+                self.data_bus = (self.register_file.get_pc() & 0x00FF) as u8;
+                self.write_ram(ram);
+                self.register_file.set_pc(page as u16);
+                self.tick_clock().await;
+                self.fetch_cycle(ram);
+            }
             Some(x) => {
-                println!("OPCODE not yet implemented {:?}", x);
+                panic!("OPCODE not yet implemented {:?}", x);
             }
         }
         self.tick_clock().await;

@@ -105,6 +105,28 @@ pub const RRCA: u8 = 0x0F;
 pub const RLA: u8 = 0x17;
 pub const RRA: u8 = 0x1F;
 pub const CB_PREFIX: u8 = 0xCB;
+// control flow instructions
+pub const JP_NN: u8 = 0xC3;
+pub const JP_HL: u8 = 0xE9;
+pub const JP_CC_NN_BASE: u8 = 0xC2;
+pub const JP_CC_NN_MASK: u8 = 0b1110_0111;
+pub const JP_NZ_NN: u8 = 0xC2;
+pub const JR_E: u8 = 0x18;
+pub const JR_CC_E_BASE: u8 = 0x20;
+pub const JR_CC_E_MASK: u8 = 0b1110_0111;
+pub const JR_NZ_E: u8 = 0x20;
+pub const CALL_NN: u8 = 0xCD;
+pub const CALL_CC_NN_BASE: u8 = 0xC4;
+pub const CALL_CC_NN_MASK: u8 = 0b1110_0111;
+pub const CALL_NZ_NN: u8 = 0xC4;
+pub const RET: u8 = 0xC9;
+pub const RET_CC_BASE: u8 = 0xC0;
+pub const RET_CC_MASK: u8 = 0b1110_0111;
+pub const RET_NZ: u8 = 0xC0;
+pub const RETI: u8 = 0xD9;
+pub const RST_N_BASE: u8 = 0xC7;
+pub const RST_N_MASK: u8 = 0b1100_0111;
+pub const RST_18: u8 = 0xDF;
 
 // misc
 pub const NOP: u8 = 0x00;
@@ -179,6 +201,17 @@ pub enum OpCode {
     RLA,
     RRA,
     CB_PREFIX,
+    JP_NN,
+    JP_HL,
+    JP_CC_NN,
+    JR_E,
+    JR_CC_E,
+    CALL_NN,
+    CALL_CC_NN,
+    RET,
+    RET_CC,
+    RETI,
+    RST_N,
 }
 
 impl OpCode {
@@ -277,6 +310,18 @@ impl OpCode {
             return Some(OpCode::RRA);
         } else if ir == CB_PREFIX {
             return Some(OpCode::CB_PREFIX);
+        } else if ir == JP_NN {
+            return Some(OpCode::JP_NN);
+        } else if ir == JP_HL {
+            return Some(OpCode::JP_HL);
+        } else if ir == JR_E {
+            return Some(OpCode::JR_E);
+        } else if ir == CALL_NN {
+            return Some(OpCode::CALL_NN);
+        } else if ir == RET {
+            return Some(OpCode::RET);
+        } else if ir == RETI {
+            return Some(OpCode::RETI);
         } else if ir & PUSH_rr_mask == PUSH_rr_base {
             return Some(OpCode::PUSH_rr);
         } else if ir & POP_rr_mask == POP_rr_base {
@@ -307,6 +352,16 @@ impl OpCode {
             return Some(OpCode::DEC_rr);
         } else if ir & ADD_HL_rr_mask == ADD_HL_rr_base {
             return Some(OpCode::ADD_HL_rr);
+        } else if ir & JP_CC_NN_MASK == JP_CC_NN_BASE {
+            return Some(OpCode::JP_CC_NN);
+        } else if ir & JR_CC_E_MASK == JR_CC_E_BASE {
+            return Some(OpCode::JR_CC_E);
+        } else if ir & CALL_CC_NN_MASK == CALL_CC_NN_BASE {
+            return Some(OpCode::CALL_CC_NN);
+        } else if ir & RET_CC_MASK == RET_CC_BASE {
+            return Some(OpCode::RET_CC);
+        } else if ir & RST_N_MASK == RST_N_BASE {
+            return Some(OpCode::RST_N);
         } else if (ir >> 6) & 0x03 == 0x00 && ir & 0x07 == 0x06 {
             return Some(OpCode::LD_r_n);
         } else if (ir >> 6) & 0x03 == 0x01 {

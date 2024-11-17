@@ -189,4 +189,18 @@ impl ALU {
         let bit = !(1 << bit);
         v & bit
     }
+
+    pub fn add_16_signed(val: u16, offset: u8) -> u16 {
+        let lsb = (val & 0x00FF) as u8;
+        let msb = ((val & 0xFF00) >> 8) as u8;
+        let (lsb, flags) = ALU::add(lsb, offset);
+        let (msb, _) = if (flags & 0x10) > 0 && (offset & 0x80) == 0 {
+            ALU::add(msb, 1)
+        } else if (flags & 0x10) == 0 && (offset & 0x80) > 0 {
+            ALU::sub(msb, 1)
+        } else {
+            (msb, 0)
+        };
+        ((msb as u16) << 8) | (lsb as u16)
+    }
 }
