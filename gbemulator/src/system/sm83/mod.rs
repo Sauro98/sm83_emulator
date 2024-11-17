@@ -683,7 +683,118 @@ impl SM83 {
                         self.register_file.set_f(flags);
                         self.tick_clock().await
                     }
-                    _ => (),
+                    Some(CBPrefixOpCode::SLA_r) => {
+                        let reg = cb_ir & 0x07;
+                        let (res, flags) =
+                            ALU::shift_left_arithmetic(self.register_file.get(reg).unwrap());
+                        self.register_file.set(reg, res).unwrap();
+                        self.register_file.set_f(flags);
+                    }
+                    Some(CBPrefixOpCode::SLA_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let (res, flags) = ALU::shift_left_arithmetic(self.data_bus);
+                        self.data_bus = res;
+                        self.write_ram(ram);
+                        self.register_file.set_f(flags);
+                        self.tick_clock().await
+                    }
+                    Some(CBPrefixOpCode::SRA_r) => {
+                        let reg = cb_ir & 0x07;
+                        let (res, flags) =
+                            ALU::shift_right_arithmetic(self.register_file.get(reg).unwrap());
+                        self.register_file.set(reg, res).unwrap();
+                        self.register_file.set_f(flags);
+                    }
+                    Some(CBPrefixOpCode::SRA_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let (res, flags) = ALU::shift_right_arithmetic(self.data_bus);
+                        self.data_bus = res;
+                        self.write_ram(ram);
+                        self.register_file.set_f(flags);
+                        self.tick_clock().await
+                    }
+                    Some(CBPrefixOpCode::SWAP_r) => {
+                        let reg = cb_ir & 0x07;
+                        let res = ALU::swap_nibbles(self.register_file.get(reg).unwrap());
+                        self.register_file.set(reg, res).unwrap();
+                    }
+                    Some(CBPrefixOpCode::SWAP_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let res = ALU::swap_nibbles(self.data_bus);
+                        self.data_bus = res;
+                        self.write_ram(ram);
+                        self.tick_clock().await
+                    }
+                    Some(CBPrefixOpCode::SRL_r) => {
+                        let reg = cb_ir & 0x07;
+                        let (res, flags) =
+                            ALU::shift_right_logical(self.register_file.get(reg).unwrap());
+                        self.register_file.set(reg, res).unwrap();
+                        self.register_file.set_f(flags);
+                    }
+                    Some(CBPrefixOpCode::SRL_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let (res, flags) = ALU::shift_right_logical(self.data_bus);
+                        self.data_bus = res;
+                        self.write_ram(ram);
+                        self.register_file.set_f(flags);
+                        self.tick_clock().await
+                    }
+                    Some(CBPrefixOpCode::BIT_b_r) => {
+                        let reg = cb_ir & 0x07;
+                        let bit = (cb_ir & 0x38) >> 3;
+                        let flags = ALU::test_bit(self.register_file.get(reg).unwrap(), bit);
+                        self.register_file.set_f(flags);
+                    }
+                    Some(CBPrefixOpCode::BIT_b_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let bit = (cb_ir & 0x38) >> 3;
+                        let flags = ALU::test_bit(self.data_bus, bit);
+                        self.register_file.set_f(flags);
+                    }
+                    Some(CBPrefixOpCode::SET_b_r) => {
+                        let reg = cb_ir & 0x07;
+                        let bit = (cb_ir & 0x38) >> 3;
+                        let res = ALU::set_bit(self.register_file.get(reg).unwrap(), bit);
+                        self.register_file.set(reg, res).unwrap();
+                    }
+                    Some(CBPrefixOpCode::SET_b_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let bit = (cb_ir & 0x38) >> 3;
+                        let res = ALU::set_bit(self.data_bus, bit);
+                        self.data_bus = res;
+                        self.write_ram(ram);
+                        self.tick_clock().await;
+                    }
+                    Some(CBPrefixOpCode::RES_b_r) => {
+                        let reg = cb_ir & 0x07;
+                        let bit = (cb_ir & 0x38) >> 3;
+                        let res = ALU::reset_bit(self.register_file.get(reg).unwrap(), bit);
+                        self.register_file.set(reg, res).unwrap();
+                    }
+                    Some(CBPrefixOpCode::RES_b_HL) => {
+                        self.address_bus = self.register_file.get_hl();
+                        self.read_ram(ram);
+                        self.tick_clock().await;
+                        let bit = (cb_ir & 0x38) >> 3;
+                        let res = ALU::reset_bit(self.data_bus, bit);
+                        self.data_bus = res;
+                        self.write_ram(ram);
+                        self.tick_clock().await;
+                    }
+                    None => panic!("Unrecognized CB prefix  op code {:x}", cb_ir),
                 }
                 self.fetch_cycle(ram);
             }

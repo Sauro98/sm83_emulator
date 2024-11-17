@@ -440,17 +440,23 @@ impl CBPrefixOpCode {
         } else if ir & SRL_R_MASK == SRL_R_BASE {
             return Some(Self::SRL_r);
         } else if ir & BIT_B_R_MASK == BIT_B_R_BASE {
-            return Some(Self::BIT_b_r);
-        } else if ir & BIT_B_HL_MASK == BIT_B_HL_BASE {
-            return Some(Self::BIT_b_HL);
+            if ir & BIT_B_HL_MASK == BIT_B_HL_BASE {
+                return Some(Self::BIT_b_HL);
+            } else {
+                return Some(Self::BIT_b_r);
+            };
         } else if ir & SET_B_R_MASK == SET_B_R_BASE {
-            return Some(Self::SET_b_r);
-        } else if ir & SET_B_HL_MASK == SET_B_HL_BASE {
-            return Some(Self::SET_b_HL);
+            if ir & SET_B_HL_MASK == SET_B_HL_BASE {
+                return Some(Self::SET_b_HL);
+            } else {
+                return Some(Self::SET_b_r);
+            }
         } else if ir & RES_B_R_MASK == RES_B_R_BASE {
-            return Some(Self::RES_b_r);
-        } else if ir & RES_B_HL_MASK == RES_B_HL_BASE {
-            return Some(Self::RES_b_HL);
+            if ir & RES_B_HL_MASK == RES_B_HL_BASE {
+                return Some(Self::RES_b_HL);
+            } else {
+                return Some(Self::RES_b_r);
+            }
         }
         return None;
     }

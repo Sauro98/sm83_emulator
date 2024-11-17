@@ -101,6 +101,16 @@ impl ALU {
         (res, flags)
     }
 
+    pub fn shift_left_arithmetic(v: u8) -> (u8, u8) {
+        let res = ((v & 0x7F) << 1) & 0xFE; // remove last bit, rotate left and clear last bit
+        let mut flags = 0;
+        if v & 0x80 > 0 {
+            // if last bit set, set carry
+            flags = 0x10;
+        }
+        (res, flags)
+    }
+
     pub fn rotate_left_circular(v: u8) -> (u8, u8) {
         let mut res = ((v & 0x7F) << 1) & 0xFE; // remove last bit, rotate left and clear last bit
         let mut flags = 0;
@@ -124,6 +134,28 @@ impl ALU {
         (res, flags)
     }
 
+    pub fn shift_right_arithmetic(v: u8) -> (u8, u8) {
+        let mut res = ((v & 0xFE) >> 1) & 0x7F; // remove first bit, rotate right and clear first bit
+        let mut flags = 0;
+        if v & 0x01 > 0 {
+            // if first bit set, set carry
+            flags = 0x10;
+        }
+        // add last bit again
+        res = res | (v & 0x80);
+        (res, flags)
+    }
+
+    pub fn shift_right_logical(v: u8) -> (u8, u8) {
+        let res = ((v & 0xFE) >> 1) & 0x7F; // remove first bit, rotate right and clear first bit
+        let mut flags = 0;
+        if v & 0x01 > 0 {
+            // if first bit set, set carry
+            flags = 0x10;
+        }
+        (res, flags)
+    }
+
     pub fn rotate_right_circular(v: u8) -> (u8, u8) {
         let mut res = ((v & 0xFE) >> 1) & 0x7F; // remove first bit, rotate right and clear first bit
         let mut flags = 0;
@@ -133,5 +165,28 @@ impl ALU {
             res |= 0x80;
         }
         (res, flags)
+    }
+
+    pub fn swap_nibbles(v: u8) -> u8 {
+        ((v & 0x0F) << 4) | ((v & 0xF0) >> 4)
+    }
+
+    pub fn test_bit(v: u8, bit: u8) -> u8 {
+        let bit = (v >> bit) & 0x01;
+        if bit > 0 {
+            0x20 // H
+        } else {
+            0xA0 // Z,H
+        }
+    }
+
+    pub fn set_bit(v: u8, bit: u8) -> u8 {
+        let bit = 1 << bit;
+        v | bit
+    }
+
+    pub fn reset_bit(v: u8, bit: u8) -> u8 {
+        let bit = !(1 << bit);
+        v & bit
     }
 }
