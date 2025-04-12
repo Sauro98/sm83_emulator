@@ -37,6 +37,7 @@ impl SM83 {
         }
     }
 
+    #[allow(dead_code)]
     pub fn load_snapshot(&mut self, snapshot: SM83Snapshot) {
         self.address_bus = snapshot.address_bus;
         self.data_bus = snapshot.data_bus;
@@ -73,7 +74,7 @@ impl SM83 {
         self.address_bus = res;
     }
 
-    fn increase_PC(&mut self) {
+    fn increase_pc(&mut self) {
         self.address_bus = self.register_file.get_pc();
         self.idu_increment();
         self.register_file.set_pc(self.address_bus);
@@ -83,7 +84,7 @@ impl SM83 {
         self.address_bus = self.register_file.get_pc();
         self.read_ram(ram);
         self.register_file.set_ir(self.data_bus);
-        self.increase_PC();
+        self.increase_pc();
     }
 
     fn read_ram(&mut self, ram: &RAM) {
@@ -91,7 +92,13 @@ impl SM83 {
     }
 
     fn write_ram(&self, ram: &mut RAM) {
-        ram.set_at(self.address_bus, self.data_bus).unwrap();
+        match ram.set_at(self.address_bus, self.data_bus) {
+            Some(_) => (),
+            None => panic!(
+                "Failed to write {:x} to address {:x}",
+                self.data_bus, self.address_bus
+            ),
+        }
     }
 
     fn push_stack(&mut self) {
@@ -184,11 +191,11 @@ impl SM83 {
     async fn read_16b_ram(&mut self, ram: &RAM) -> u16 {
         self.read_ram(ram);
         let value = self.data_bus as u16;
-        self.increase_PC();
+        self.increase_pc();
         self.tick_clock().await;
         self.read_ram(ram);
         let value = ((self.data_bus as u16) << 8) | value;
-        self.increase_PC();
+        self.increase_pc();
         self.tick_clock().await;
         return value;
     }
@@ -216,7 +223,7 @@ impl SM83 {
             Some(OpCode::LD_HL_n) => {
                 // read value from ram
                 self.read_ram(ram);
-                self.increase_PC();
+                self.increase_pc();
                 self.tick_clock().await;
                 //  write value to ram
                 self.address_bus = self.register_file.get_hl();
@@ -294,7 +301,7 @@ impl SM83 {
             }
             Some(OpCode::LDH_A_n) => {
                 self.read_ram(ram);
-                self.increase_PC();
+                self.increase_pc();
                 self.tick_clock().await;
                 self.address_bus = 0xFF00 | (self.data_bus as u16);
                 self.read_ram(ram);
@@ -304,7 +311,7 @@ impl SM83 {
             }
             Some(OpCode::LDH_n_A) => {
                 self.read_ram(ram);
-                self.increase_PC();
+                self.increase_pc();
                 self.tick_clock().await;
                 self.address_bus = 0xFF00 | (self.data_bus as u16);
                 self.data_bus = self.register_file.get_a();
@@ -344,7 +351,7 @@ impl SM83 {
                 // data read cycle
                 let reg = (ir >> 3) & 0x07;
                 self.read_ram(ram);
-                self.increase_PC();
+                self.increase_pc();
                 self.tick_clock().await;
                 // fetch cycle
                 self.register_file.set(reg, self.data_bus).unwrap();
@@ -406,7 +413,7 @@ impl SM83 {
             Some(OpCode::LD_HL_SPe) => {
                 self.read_ram(ram);
                 let e = self.data_bus;
-                self.increase_PC();
+                self.increase_pc();
                 self.tick_clock().await;
                 let (sum, flags) = ALU::add(self.register_file.get_p(), e);
                 let flags = if sum == 0 { flags | 0x80 } else { flags };
@@ -500,7 +507,7 @@ impl SM83 {
             | Some(OpCode::SBC_n) | Some(OpCode::CP_n) | Some(OpCode::AND_n)
             | Some(OpCode::OR_n) | Some(OpCode::XOR_n) => {
                 self.read_ram(ram);
-                self.increase_PC();
+                self.increase_pc();
                 self.tick_clock().await;
                 match op_code.unwrap() {
                     OpCode::ADD_n => self.add(self.data_bus, false),
@@ -518,7 +525,7 @@ impl SM83 {
                 self.fetch_cycle(ram);
             }
             Some(OpCode::INC_r) | Some(OpCode::DEC_r) => {
-                let reg = ir & 0b0011_1000;
+                let reg = (ir & !opcodes::INC_R_MASK) >> 3;
                 let (res, flags) = if op_code.unwrap() == OpCode::INC_r {
                     ALU::increment(self.register_file.get(reg).unwrap())
                 } else {
@@ -600,7 +607,7 @@ impl SM83 {
             Some(OpCode::ADD_SP_e) => {
                 self.read_ram(ram);
                 let e = self.data_bus;
-                self.increase_PC();
+                self.increase_pc();
                 self.tick_clock().await;
                 let (sum, flags) = ALU::add(self.register_file.get_p(), e);
                 let flags = if sum == 0 { flags | 0x80 } else { flags };
@@ -855,7 +862,7 @@ impl SM83 {
             Some(OpCode::JR_E) => {
                 self.read_ram(ram);
                 let val = self.data_bus;
-                self.increase_PC();
+                self.increase_pc();
                 self.tick_clock().await;
                 let new_pc = ALU::add_16_signed(self.register_file.get_pc(), val);
                 self.tick_clock().await;
@@ -866,7 +873,7 @@ impl SM83 {
                 self.read_ram(ram);
                 let val = self.data_bus;
                 let condition = self.code_to_condition((ir >> 3) & 0x03);
-                self.increase_PC();
+                self.increase_pc();
                 self.tick_clock().await;
                 if condition {
                     let new_pc = ALU::add_16_signed(self.register_file.get_pc(), val);
@@ -966,6 +973,7 @@ impl SM83 {
         return self.internal_clock.avg_delay();
     }
 
+    #[allow(dead_code)]
     pub fn get_register(&self, register: RegisterName) -> u16 {
         match register {
             RegisterName::IR => self.register_file.get_ir() as u16,
@@ -987,10 +995,12 @@ impl SM83 {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_data_bus(&self) -> u8 {
         self.data_bus
     }
 
+    #[allow(dead_code)]
     pub fn get_address_bus(&self) -> u16 {
         self.address_bus
     }

@@ -1,10 +1,12 @@
 pub struct RAM {
-    data: [u8; 65535],
+    data: [u8; u16::MAX as usize + 1],
 }
 
 impl RAM {
     pub fn new() -> RAM {
-        RAM { data: [0; 65535] }
+        RAM {
+            data: [0; u16::MAX as usize + 1],
+        }
     }
 
     pub fn get_at(&self, address: u16) -> Option<&u8> {

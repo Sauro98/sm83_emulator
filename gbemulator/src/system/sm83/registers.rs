@@ -24,6 +24,7 @@ impl Shared16BitRegister {
     }
 }
 
+#[allow(dead_code)]
 pub enum RegisterName {
     IR,
     IE,
@@ -44,170 +45,170 @@ pub enum RegisterName {
 }
 
 pub struct RegisterFile {
-    IRIE: Shared16BitRegister,
-    AF: Shared16BitRegister,
-    BC: Shared16BitRegister,
-    DE: Shared16BitRegister,
-    HL: Shared16BitRegister,
-    PC: u16,
-    SP: Shared16BitRegister,
+    irie: Shared16BitRegister,
+    af: Shared16BitRegister,
+    bc: Shared16BitRegister,
+    de: Shared16BitRegister,
+    hl: Shared16BitRegister,
+    pc: u16,
+    sp: Shared16BitRegister,
 }
 
 impl RegisterFile {
     pub fn new() -> RegisterFile {
         return RegisterFile {
-            IRIE: Shared16BitRegister::new(),
-            AF: Shared16BitRegister::new(),
-            BC: Shared16BitRegister::new(),
-            DE: Shared16BitRegister::new(),
-            HL: Shared16BitRegister::new(),
-            PC: 0,
-            SP: Shared16BitRegister::new(),
+            irie: Shared16BitRegister::new(),
+            af: Shared16BitRegister::new(),
+            bc: Shared16BitRegister::new(),
+            de: Shared16BitRegister::new(),
+            hl: Shared16BitRegister::new(),
+            pc: 0,
+            sp: Shared16BitRegister::new(),
         };
     }
 
     pub fn get_ir(&self) -> u8 {
-        return self.IRIE.first();
+        return self.irie.first();
     }
 
     pub fn get_ie(&self) -> u8 {
-        return self.IRIE.second();
+        return self.irie.second();
     }
 
     pub fn get_af(&self) -> u16 {
-        return self.AF.content;
+        return self.af.content;
     }
 
     pub fn get_a(&self) -> u8 {
-        return self.AF.first();
+        return self.af.first();
     }
 
     pub fn get_f(&self) -> u8 {
-        return self.AF.second();
+        return self.af.second();
     }
 
     pub fn get_bc(&self) -> u16 {
-        return self.BC.content;
+        return self.bc.content;
     }
 
     pub fn get_b(&self) -> u8 {
-        return self.BC.first();
+        return self.bc.first();
     }
 
     pub fn get_c(&self) -> u8 {
-        return self.BC.second();
+        return self.bc.second();
     }
 
     pub fn get_de(&self) -> u16 {
-        return self.DE.content;
+        return self.de.content;
     }
 
     pub fn get_d(&self) -> u8 {
-        return self.DE.first();
+        return self.de.first();
     }
 
     pub fn get_e(&self) -> u8 {
-        return self.DE.second();
+        return self.de.second();
     }
 
     pub fn get_hl(&self) -> u16 {
-        return self.HL.content;
+        return self.hl.content;
     }
 
     pub fn get_h(&self) -> u8 {
-        return self.HL.first();
+        return self.hl.first();
     }
 
     pub fn get_l(&self) -> u8 {
-        return self.HL.second();
+        return self.hl.second();
     }
 
     pub fn get_pc(&self) -> u16 {
-        return self.PC;
+        return self.pc;
     }
 
     pub fn get_sp(&self) -> u16 {
-        return self.SP.content;
+        return self.sp.content;
     }
 
     pub fn get_s(&self) -> u8 {
-        return self.SP.first();
+        return self.sp.first();
     }
 
     pub fn get_p(&self) -> u8 {
-        return self.SP.second();
+        return self.sp.second();
     }
 
     pub fn set_ir(&mut self, value: u8) {
-        return self.IRIE.write_first(value);
+        return self.irie.write_first(value);
     }
 
     pub fn set_ie(&mut self, value: u8) {
-        return self.IRIE.write_second(value);
+        return self.irie.write_second(value);
     }
 
     pub fn set_af(&mut self, value: u16) {
-        return self.AF.content = value;
+        return self.af.content = value;
     }
 
     pub fn set_a(&mut self, value: u8) {
-        return self.AF.write_first(value);
+        return self.af.write_first(value);
     }
 
     pub fn set_f(&mut self, value: u8) {
-        return self.AF.write_second(value);
+        return self.af.write_second(value);
     }
 
     pub fn set_bc(&mut self, value: u16) {
-        return self.BC.content = value;
+        return self.bc.content = value;
     }
 
     pub fn set_b(&mut self, value: u8) {
-        return self.BC.write_first(value);
+        return self.bc.write_first(value);
     }
 
     pub fn set_c(&mut self, value: u8) {
-        return self.BC.write_second(value);
+        return self.bc.write_second(value);
     }
 
     pub fn set_de(&mut self, value: u16) {
-        return self.DE.content = value;
+        return self.de.content = value;
     }
 
     pub fn set_d(&mut self, value: u8) {
-        return self.DE.write_first(value);
+        return self.de.write_first(value);
     }
 
     pub fn set_e(&mut self, value: u8) {
-        return self.DE.write_second(value);
+        return self.de.write_second(value);
     }
 
     pub fn set_hl(&mut self, value: u16) {
-        return self.HL.content = value;
+        return self.hl.content = value;
     }
 
     pub fn set_h(&mut self, value: u8) {
-        return self.HL.write_first(value);
+        return self.hl.write_first(value);
     }
 
     pub fn set_l(&mut self, value: u8) {
-        return self.HL.write_second(value);
+        return self.hl.write_second(value);
     }
 
     pub fn set_pc(&mut self, value: u16) {
-        self.PC = value;
+        self.pc = value;
     }
 
     pub fn set_sp(&mut self, value: u16) {
-        self.SP.content = value;
+        self.sp.content = value;
     }
 
     pub fn set_s(&mut self, value: u8) {
-        self.SP.write_first(value);
+        self.sp.write_first(value);
     }
 
     pub fn set_p(&mut self, value: u8) {
-        self.SP.write_second(value);
+        self.sp.write_second(value);
     }
 
     pub fn set(&mut self, reg: u8, val: u8) -> Result<(), std::string::String> {
@@ -285,57 +286,41 @@ impl RegisterFile {
     }
 
     pub fn get_zero_flag(&self) -> u8 {
-        (self.AF.second() & 0x80) >> 7
-    }
-
-    pub fn set_zero_flag(&mut self) {
-        self.AF.write_second(self.AF.second() | 0x80);
-    }
-
-    pub fn unset_zero_flag(&mut self) {
-        self.AF.write_second(self.AF.second() & 0x7F);
-    }
-
-    pub fn get_negative_flag(&self) -> u8 {
-        (self.AF.second() & 0x40) >> 6
+        (self.af.second() & 0x80) >> 7
     }
 
     pub fn set_negative_flag(&mut self) {
-        self.AF.write_second(self.AF.second() | 0x40);
+        self.af.write_second(self.af.second() | 0x40);
     }
 
     pub fn unset_negative_flag(&mut self) {
-        self.AF.write_second(self.AF.second() & 0xBF);
+        self.af.write_second(self.af.second() & 0xBF);
     }
 
     pub fn get_half_carry_flag(&self) -> u8 {
-        (self.AF.second() & 0x20) >> 5
+        (self.af.second() & 0x20) >> 5
     }
 
     pub fn set_half_carry_flag(&mut self) {
-        self.AF.write_second(self.AF.second() | 0x20);
+        self.af.write_second(self.af.second() | 0x20);
     }
 
     pub fn unset_half_carry_flag(&mut self) {
-        self.AF.write_second(self.AF.second() & 0xDF);
+        self.af.write_second(self.af.second() & 0xDF);
     }
 
     pub fn get_carry_flag(&self) -> u8 {
-        (self.AF.second() & 0x10) >> 4
+        (self.af.second() & 0x10) >> 4
     }
 
     pub fn set_carry_flag(&mut self) {
-        self.AF.write_second(self.AF.second() | 0x10);
-    }
-
-    pub fn unset_carry_flag(&mut self) {
-        self.AF.write_second(self.AF.second() & 0xEF);
+        self.af.write_second(self.af.second() | 0x10);
     }
 
     pub fn flip_carry_flag(&mut self) {
         // xor with the carry bit mask:
         // the other bits are left untouched since 1^0 = 1 and 0^0=0
         // the carry bit is flipped since 1^0 = 1 and 1^1=0
-        self.AF.write_second(self.AF.second() ^ 0x10);
+        self.af.write_second(self.af.second() ^ 0x10);
     }
 }

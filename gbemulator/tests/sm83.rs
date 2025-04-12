@@ -4,17 +4,67 @@ use gbemulator::system::sm83::registers::RegisterName;
 use gbemulator::system::sm83::snapshot::SM83Snapshot;
 use gbemulator::system::sm83::{self};
 
+pub const LD_B_N: u8 = 0x06;
+pub const LD_C_N: u8 = 0x0E;
+pub const LD_B_C: u8 = 0x41;
+pub const LD_B_HL: u8 = 0x46;
+pub const LD_HL_B: u8 = 0x70;
+pub const LD_A_N: u8 = 0x16;
+pub const LD_DE_NN: u8 = 0x21;
+pub const LD_BC_NN: u8 = 0x01;
+pub const LD_HL_NN: u8 = 0x31;
+pub const PUSH_BC: u8 = 0xC5;
+pub const PUSH_HL: u8 = 0xF5;
+pub const POP_BC: u8 = 0xC1;
+pub const POP_HL: u8 = 0xF1;
+pub const ADD_B: u8 = 0x80;
+pub const ADD_C: u8 = 0x81;
+pub const ADC_B: u8 = 0x88;
+pub const ADC_C: u8 = 0x89;
+pub const SUB_B: u8 = 0x90;
+pub const SBC_B: u8 = 0x98;
+pub const CP_B: u8 = 0xB8;
+pub const INC_B: u8 = 0x04;
+pub const INC_A: u8 = 0x3C;
+pub const DEC_B: u8 = 0x05;
+pub const AND_B: u8 = 0xA0;
+pub const OR_B: u8 = 0xB0;
+pub const XOR_B: u8 = 0xA8;
+pub const INC_BC: u8 = 0x03;
+pub const DEC_BC: u8 = 0x0B;
+pub const ADD_HL_BC: u8 = 0x09;
+pub const JP_NZ_NN: u8 = 0xC2;
+pub const JR_NZ_E: u8 = 0x20;
+pub const CALL_NZ_NN: u8 = 0xC4;
+pub const RET_NZ: u8 = 0xC0;
+pub const RST_08: u8 = 0xCF;
+pub const RST_18: u8 = 0xDF;
+pub const RLC_B: u8 = 0x00;
+pub const RRC_B: u8 = 0x08;
+pub const RL_B: u8 = 0x10;
+pub const RR_B: u8 = 0x18;
+pub const SLA_B: u8 = 0x20;
+pub const SRA_B: u8 = 0x28;
+pub const SWAP_B: u8 = 0x30;
+pub const SRL_B: u8 = 0x38;
+pub const BIT_0_B: u8 = 0x40;
+pub const BIT_0_HL: u8 = 0x46;
+pub const RES_0_B: u8 = 0x80;
+pub const RES_0_HL: u8 = 0x86;
+pub const SET_0_B: u8 = 0xC0;
+pub const SET_0_HL: u8 = 0xC6;
+
 #[tokio::test]
 async fn test_ldrn() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_B_n).unwrap(); // LD B,n    // PC = 0 opcode
+    ram.set_at(0x0000, LD_B_N).unwrap(); // LD B,n    // PC = 0 opcode
     ram.set_at(0x0001, 0xAB).unwrap(); // n = 0xAB  // PC = 1 value
     ram.set_at(0x0002, 0xCD).unwrap(); //           // PC = 2 dummy value
     let mut cpu = sm83::SM83::new(frequency);
     cpu.fetch_cycle(&mut ram); // fetch, load opcode and advance PC to 1
-    assert_eq!(cpu.get_data_bus(), LD_B_n);
-    assert_eq!(cpu.get_register(RegisterName::IR), LD_B_n as u16);
+    assert_eq!(cpu.get_data_bus(), LD_B_N);
+    assert_eq!(cpu.get_register(RegisterName::IR), LD_B_N as u16);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x01);
     assert_eq!(cpu.get_register(RegisterName::B), 0x00);
     assert_eq!(cpu.cycle_count, 0);
@@ -31,14 +81,14 @@ async fn test_ldrn() {
 async fn test_ldr_r() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_C_n).unwrap(); // LD C,n    // PC = 0 opcode
+    ram.set_at(0x0000, LD_C_N).unwrap(); // LD C,n    // PC = 0 opcode
     ram.set_at(0x0001, 0xAB).unwrap(); // n = 0xAB  // PC = 1 value
     ram.set_at(0x0002, LD_B_C).unwrap(); // LD B,C    // PC = 2 opcode
     ram.set_at(0x0003, 0xCD).unwrap(); //           // PC = 3 dummy value
     let mut cpu = sm83::SM83::new(frequency);
     cpu.fetch_cycle(&mut ram); // fetch, load opcode and advance PC to 1
-    assert_eq!(cpu.get_data_bus(), LD_C_n);
-    assert_eq!(cpu.get_register(RegisterName::IR), LD_C_n as u16);
+    assert_eq!(cpu.get_data_bus(), LD_C_N);
+    assert_eq!(cpu.get_register(RegisterName::IR), LD_C_N as u16);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x01);
     assert_eq!(cpu.get_register(RegisterName::C), 0x00);
     assert_eq!(cpu.cycle_count, 0);
@@ -63,7 +113,7 @@ async fn test_ldr_r() {
 async fn test_ldr_hl() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // LD HL,nn  // PC = 0 opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // LD HL,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0x0A).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
     ram.set_at(0x0003, LD_B_HL).unwrap(); // LD B,HL   // PC = 3 opcode
@@ -96,10 +146,10 @@ async fn test_ldr_hl() {
 async fn test_ldhlr() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // LD HL,nn  // PC = 0 opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // LD HL,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0x0A).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
-    ram.set_at(0x0003, LD_B_n).unwrap(); // LD B,n    // PC = 3 opcode
+    ram.set_at(0x0003, LD_B_N).unwrap(); // LD B,n    // PC = 3 opcode
     ram.set_at(0x0004, 0xEE).unwrap(); // n = 0xEE  // PC = 4 value
     ram.set_at(0x0005, LD_HL_B).unwrap(); // LD HL,B   // PC = 5 opcode
     ram.set_at(0x0006, 0xCD).unwrap(); //           // PC = 6 dummy value
@@ -134,10 +184,10 @@ async fn test_ldhlr() {
 async fn test_ldhln() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // LD HL,nn  // PC = 0 opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // LD HL,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0x0A).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
-    ram.set_at(0x0003, LD_HL_n).unwrap(); // LD HL,n   // PC = 3 opcode
+    ram.set_at(0x0003, LD_HL_N).unwrap(); // LD HL,n   // PC = 3 opcode
     ram.set_at(0x0004, 0xEE).unwrap(); // n = 0xEE  // PC = 4 value
     ram.set_at(0x0005, 0xCD).unwrap(); //           // PC = 5 dummy value
     let mut cpu = sm83::SM83::new(frequency);
@@ -145,8 +195,8 @@ async fn test_ldhln() {
     cpu.next(&mut ram).await; // cycle 1: run, read value lsb, increase PC to 2
                               // cycle 2: run, read value msb, increase PC to 3
                               // cycle 3: write value, read PC to IR, increase PC to 4, ready to execute instruction and PC 3
-    assert_eq!(cpu.get_data_bus(), LD_HL_n);
-    assert_eq!(cpu.get_register(RegisterName::IR), LD_HL_n as u16);
+    assert_eq!(cpu.get_data_bus(), LD_HL_N);
+    assert_eq!(cpu.get_register(RegisterName::IR), LD_HL_N as u16);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x04);
     assert_eq!(cpu.get_register(RegisterName::H), 0x00);
     assert_eq!(cpu.get_register(RegisterName::L), 0x0A);
@@ -168,7 +218,7 @@ async fn test_ldhln() {
 async fn test_ldabc() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_BC_nn).unwrap(); // LD BC,nn  // PC = 0 opcode
+    ram.set_at(0x0000, LD_BC_NN).unwrap(); // LD BC,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
     ram.set_at(0x0003, LD_A_BC).unwrap(); // LD A,BC   // PC = 3 opcode
@@ -199,10 +249,10 @@ async fn test_ldabc() {
 async fn test_ldbca() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_BC_nn).unwrap(); // LD BC,nn  // PC = 0 opcode
+    ram.set_at(0x0000, LD_BC_NN).unwrap(); // LD BC,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
-    ram.set_at(0x0003, LD_A_n).unwrap(); // LD A,n    // PC = 3 opcode
+    ram.set_at(0x0003, LD_A_N).unwrap(); // LD A,n    // PC = 3 opcode
     ram.set_at(0x0004, 0xEE).unwrap(); //           // PC = 4 value
     ram.set_at(0x0005, LD_BC_A).unwrap(); //           // PC = 5 opcode
     ram.set_at(0x0006, 0xCD).unwrap(); //           // PC = 6 dummy value
@@ -211,8 +261,8 @@ async fn test_ldbca() {
     cpu.next(&mut ram).await; // cycle 1: run, read value lsb, increase PC to 2
                               // cycle 2: run, read value msb, increase PC to 3
                               // cycle 3: write value, read PC to IR, increase PC to 4, ready to execute instruction and PC 3
-    assert_eq!(cpu.get_data_bus(), LD_A_n);
-    assert_eq!(cpu.get_register(RegisterName::IR), LD_A_n as u16);
+    assert_eq!(cpu.get_data_bus(), LD_A_N);
+    assert_eq!(cpu.get_register(RegisterName::IR), LD_A_N as u16);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x04);
     assert_eq!(cpu.get_register(RegisterName::B), 0x00);
     assert_eq!(cpu.get_register(RegisterName::C), 0xAA);
@@ -242,7 +292,7 @@ async fn test_ldbca() {
 async fn test_ldade() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_DE_nn).unwrap(); // LD DE,nn  // PC = 0 opcode
+    ram.set_at(0x0000, LD_DE_NN).unwrap(); // LD DE,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
     ram.set_at(0x0003, LD_A_DE).unwrap(); // LD A,DE   // PC = 3 opcode
@@ -273,10 +323,10 @@ async fn test_ldade() {
 async fn test_lddea() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_DE_nn).unwrap(); // LD DE,nn  // PC = 0 opcode
+    ram.set_at(0x0000, LD_DE_NN).unwrap(); // LD DE,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
-    ram.set_at(0x0003, LD_A_n).unwrap(); // LD A,n    // PC = 3 opcode
+    ram.set_at(0x0003, LD_A_N).unwrap(); // LD A,n    // PC = 3 opcode
     ram.set_at(0x0004, 0xEE).unwrap(); //           // PC = 4 value
     ram.set_at(0x0005, LD_DE_A).unwrap(); //           // PC = 5 opcode
     ram.set_at(0x0006, 0xCD).unwrap(); //           // PC = 6 dummy value
@@ -285,8 +335,8 @@ async fn test_lddea() {
     cpu.next(&mut ram).await; // cycle 1: run, read value lsb, increase PC to 2
                               // cycle 2: run, read value msb, increase PC to 3
                               // cycle 3: write value, read PC to IR, increase PC to 4, ready to execute instruction and PC 3
-    assert_eq!(cpu.get_data_bus(), LD_A_n);
-    assert_eq!(cpu.get_register(RegisterName::IR), LD_A_n as u16);
+    assert_eq!(cpu.get_data_bus(), LD_A_N);
+    assert_eq!(cpu.get_register(RegisterName::IR), LD_A_N as u16);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x04);
     assert_eq!(cpu.get_register(RegisterName::D), 0x00);
     assert_eq!(cpu.get_register(RegisterName::E), 0xAA);
@@ -316,7 +366,7 @@ async fn test_lddea() {
 async fn test_ldann() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_A_nn).unwrap(); // PC = 0 opcode
+    ram.set_at(0x0000, LD_A_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
     ram.set_at(0x0003, 0xCD).unwrap(); //           // PC = 3 dummy value
@@ -334,9 +384,9 @@ async fn test_ldann() {
 async fn test_ldnn_a() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_A_n); // PC = 0 opcode
+    ram.set_at(0x0000, LD_A_N); // PC = 0 opcode
     ram.set_at(0x0001, 0xEE); // n = 0xEE
-    ram.set_at(0x0002, LD_nn_A).unwrap(); // PC = 2 opcode
+    ram.set_at(0x0002, LD_NN_A).unwrap(); // PC = 2 opcode
     ram.set_at(0x0003, 0xAA).unwrap(); // n = 0xAA  // PC = 3 value lsb
     ram.set_at(0x0004, 0x00).unwrap(); // n = 0x00  // PC = 4 value msb
     ram.set_at(0x0005, 0xCD).unwrap(); //           // PC = 5 dummy value
@@ -356,7 +406,7 @@ async fn test_ldnn_a() {
 async fn test_ldhac() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_C_n); // PC = 0 opcode
+    ram.set_at(0x0000, LD_C_N); // PC = 0 opcode
     ram.set_at(0x0001, 0xEE); // n = 0xEE
     ram.set_at(0x0002, LDH_A_C).unwrap(); // PC = 2 opcode
     ram.set_at(0x0003, 0xCD).unwrap(); // PC = 3 dummy value
@@ -378,9 +428,9 @@ async fn test_ldhac() {
 async fn test_ldhca() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_C_n); // PC = 0 opcode
+    ram.set_at(0x0000, LD_C_N); // PC = 0 opcode
     ram.set_at(0x0001, 0xEE); // n = 0xEE
-    ram.set_at(0x0002, LD_A_n); // PC = 2 opcode
+    ram.set_at(0x0002, LD_A_N); // PC = 2 opcode
     ram.set_at(0x0003, 0xBB); // n = 0xEE
     ram.set_at(0x0004, LDH_C_A).unwrap(); // PC = 4 opcode
     ram.set_at(0x0005, 0xCD).unwrap(); // PC = 5 dummy value
@@ -405,7 +455,7 @@ async fn test_ldhca() {
 async fn test_ldhan() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LDH_A_n).unwrap(); // PC = 0 opcode
+    ram.set_at(0x0000, LDH_A_N).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xEE).unwrap(); // value
     ram.set_at(0x0002, 0xCD).unwrap(); // PC = 2 dummy value
     ram.set_at(0xFFEE, 0xBB).unwrap(); // target value
@@ -423,9 +473,9 @@ async fn test_ldhan() {
 async fn test_ldhn_a() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_A_n).unwrap(); // PC = 0 opcode
+    ram.set_at(0x0000, LD_A_N).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xBB).unwrap(); // value
-    ram.set_at(0x0002, LDH_n_A).unwrap(); // PC = 2 opcode
+    ram.set_at(0x0002, LDH_N_A).unwrap(); // PC = 2 opcode
     ram.set_at(0x0003, 0xEE).unwrap(); // value
     ram.set_at(0x0004, 0xCD).unwrap(); // PC = 2 dummy value
     let mut cpu = sm83::SM83::new(frequency);
@@ -445,10 +495,10 @@ async fn test_ldhn_a() {
 async fn test_ldahlm() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // value msb
-    ram.set_at(0x0003, LD_A_HLm).unwrap(); // opcode
+    ram.set_at(0x0003, LD_A_HLM).unwrap(); // opcode
     ram.set_at(0x0004, 0xCD).unwrap(); // dummy value
     ram.set_at(0x00AA, 0xEE).unwrap(); // value
     let mut cpu = sm83::SM83::new(frequency);
@@ -469,12 +519,12 @@ async fn test_ldahlm() {
 async fn test_ldhlm_a() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // value msb
-    ram.set_at(0x0003, LD_A_n).unwrap(); // opcode
+    ram.set_at(0x0003, LD_A_N).unwrap(); // opcode
     ram.set_at(0x0004, 0xEE).unwrap(); // value
-    ram.set_at(0x0005, LD_HLm_A).unwrap(); // opcode
+    ram.set_at(0x0005, LD_HLM_A).unwrap(); // opcode
     ram.set_at(0x0006, 0xCD).unwrap(); // dummy value
     let mut cpu = sm83::SM83::new(frequency);
     cpu.fetch_cycle(&mut ram); // fetch, load opcode and advance PC to 1
@@ -499,10 +549,10 @@ async fn test_ldhlm_a() {
 async fn test_ldahlp() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // value msb
-    ram.set_at(0x0003, LD_A_HLp).unwrap(); // opcode
+    ram.set_at(0x0003, LD_A_HLP).unwrap(); // opcode
     ram.set_at(0x0004, 0xCD).unwrap(); // dummy value
     ram.set_at(0x00AA, 0xEE).unwrap(); // value
     let mut cpu = sm83::SM83::new(frequency);
@@ -523,12 +573,12 @@ async fn test_ldahlp() {
 async fn test_ldhlp_a() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // value msb
-    ram.set_at(0x0003, LD_A_n).unwrap(); // opcode
+    ram.set_at(0x0003, LD_A_N).unwrap(); // opcode
     ram.set_at(0x0004, 0xEE).unwrap(); // value
-    ram.set_at(0x0005, LD_HLp_A).unwrap(); // opcode
+    ram.set_at(0x0005, LD_HLP_A).unwrap(); // opcode
     ram.set_at(0x0006, 0xCD).unwrap(); // dummy value
     let mut cpu = sm83::SM83::new(frequency);
     cpu.fetch_cycle(&mut ram); // fetch, load opcode and advance PC to 1
@@ -553,7 +603,7 @@ async fn test_ldhlp_a() {
 async fn test_ldrrnn() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // LD HL,nn  // PC = 0 opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // LD HL,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
     ram.set_at(0x0003, 0xCD).unwrap(); //           // PC = 3 dummy value
@@ -575,7 +625,7 @@ async fn test_ldrrnn() {
 async fn test_ldsphl() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // PC = 0 opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // PC = 2 value msb
     ram.set_at(0x0003, LD_SP_HL).unwrap(); // PC = 3 opcode
@@ -599,11 +649,11 @@ async fn test_ldsphl() {
 async fn test_ldnn_sp() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // PC = 0 opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // PC = 1 value lsb
     ram.set_at(0x0002, 0x02).unwrap(); // PC = 2 value msb
     ram.set_at(0x0003, LD_SP_HL).unwrap(); // PC = 3 opcode
-    ram.set_at(0x0004, LD_nn_SP).unwrap(); // PC = 4 opcode
+    ram.set_at(0x0004, LD_NN_SP).unwrap(); // PC = 4 opcode
     ram.set_at(0x0005, 0xAB).unwrap(); // PC = 5 value
     ram.set_at(0x0006, 0x01).unwrap(); // PC = 6 value
     ram.set_at(0x0007, 0xCD).unwrap(); // PC = 7 dummy value
@@ -615,7 +665,7 @@ async fn test_ldnn_sp() {
     assert_eq!(cpu.get_register(RegisterName::HL), 0x02AA);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x0000);
     cpu.next(&mut ram).await;
-    assert_eq!(cpu.get_register(RegisterName::IR), LD_nn_SP as u16);
+    assert_eq!(cpu.get_register(RegisterName::IR), LD_NN_SP as u16);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x05);
     assert_eq!(cpu.get_register(RegisterName::HL), 0x02AA);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x02AA);
@@ -636,7 +686,7 @@ async fn test_ldnn_sp() {
 async fn test_push_rr() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // PC = 0 opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // PC = 2 value msb
     ram.set_at(0x0003, LD_SP_HL).unwrap(); // PC = 3 opcode
@@ -671,7 +721,7 @@ async fn test_push_rr() {
 async fn test_pop_rr() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // PC = 0 opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // PC = 2 value msb
     ram.set_at(0x0003, LD_SP_HL).unwrap(); // PC = 3 opcode
@@ -704,11 +754,11 @@ async fn test_pop_rr() {
 async fn test_ldhl_spe() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, LD_HL_nn).unwrap(); // PC = 0 opcode
+    ram.set_at(0x0000, LD_HL_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // PC = 2 value msb
     ram.set_at(0x0003, LD_SP_HL).unwrap(); // PC = 3 opcode
-    ram.set_at(0x0004, LD_HL_SPe).unwrap(); // PC = 4 opcode
+    ram.set_at(0x0004, LD_HL_SPE).unwrap(); // PC = 4 opcode
     ram.set_at(0x0005, 0x85).unwrap(); // value
     ram.set_at(0x0006, 0xCD).unwrap(); // PC = 6 dummy value
     let mut cpu = sm83::SM83::new(frequency);
@@ -719,7 +769,7 @@ async fn test_ldhl_spe() {
     assert_eq!(cpu.get_register(RegisterName::HL), 0x00AA);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x0000);
     cpu.next(&mut ram).await;
-    assert_eq!(cpu.get_register(RegisterName::IR), LD_HL_SPe as u16);
+    assert_eq!(cpu.get_register(RegisterName::IR), LD_HL_SPE as u16);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x05);
     assert_eq!(cpu.get_register(RegisterName::HL), 0x00AA);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x00AA);
@@ -834,7 +884,7 @@ async fn test_add_hl() {
 async fn test_add_n() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, ADD_n).unwrap();
+    ram.set_at(0x0000, ADD_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(5);
@@ -904,7 +954,7 @@ async fn test_adc_hl() {
 async fn test_adc_n() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, ADC_n).unwrap();
+    ram.set_at(0x0000, ADC_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(5).with_f(0x10);
@@ -959,7 +1009,7 @@ async fn test_sub_hl() {
 async fn test_sub_n() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, SUB_n).unwrap();
+    ram.set_at(0x0000, SUB_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(255);
@@ -1012,7 +1062,7 @@ async fn test_sbc_hl() {
 async fn test_sbc_n() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, SBC_n).unwrap();
+    ram.set_at(0x0000, SBC_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(5).with_f(0x10);
@@ -1067,7 +1117,7 @@ async fn test_cp_hl() {
 async fn test_cp_n() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, CP_n).unwrap();
+    ram.set_at(0x0000, CP_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(5);
@@ -1211,7 +1261,7 @@ async fn test_and_hl() {
 async fn test_and_n() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, AND_n).unwrap();
+    ram.set_at(0x0000, AND_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(254);
@@ -1265,7 +1315,7 @@ async fn test_or_hl() {
 async fn test_or_n() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, OR_n).unwrap();
+    ram.set_at(0x0000, OR_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(254);
@@ -1319,7 +1369,7 @@ async fn test_xor_hl() {
 async fn test_xor_n() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, XOR_n).unwrap();
+    ram.set_at(0x0000, XOR_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(254);
@@ -1498,7 +1548,7 @@ async fn test_add_hl_rr() {
 async fn test_add_spe() {
     let frequency = 1. * 1e6;
     let mut ram = ram::RAM::new();
-    ram.set_at(0x0000, ADD_SP_e).unwrap();
+    ram.set_at(0x0000, ADD_SP_E).unwrap();
     ram.set_at(0x0001, 0x85).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_sp(0x00AA);
@@ -2326,4 +2376,36 @@ async fn test_ei() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert!(cpu.interrupt_enabled());
     assert_eq!(cpu.cycle_count, 1);
+}
+
+#[tokio::test]
+async fn test_fetch_execute_overlap() {
+    let frequency = 1. * 1e6;
+    let mut ram = ram::RAM::new();
+    ram.set_at(0x1000, INC_A).unwrap();
+    ram.set_at(0x1001, LDH_N_A).unwrap();
+    ram.set_at(0x1003, RST_08).unwrap();
+    ram.set_at(0x0008, NOP).unwrap();
+    let snapshot = SM83Snapshot::new().with_pc(0x1000);
+    let mut cpu = sm83::SM83::new(frequency);
+    cpu.load_snapshot(snapshot);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x1001);
+    assert_eq!(cpu.get_register(RegisterName::IR), INC_A as u16);
+    assert_eq!(cpu.cycle_count, 1);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x1002);
+    assert_eq!(cpu.get_register(RegisterName::IR), LDH_N_A as u16);
+    assert_eq!(cpu.cycle_count, 2);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x1004);
+    assert_eq!(cpu.get_register(RegisterName::IR), RST_08 as u16);
+    assert_eq!(cpu.cycle_count, 5);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x0009);
+    assert_eq!(cpu.get_register(RegisterName::IR), NOP as u16);
+    assert_eq!(cpu.cycle_count, 9);
+    cpu.next(&mut ram).await;
+    assert_eq!(cpu.get_register(RegisterName::PC), 0x000A);
+    assert_eq!(cpu.cycle_count, 10);
 }

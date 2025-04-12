@@ -16,6 +16,7 @@ pub struct SM83Snapshot {
     pub ime: bool,
 }
 
+#[allow(dead_code)]
 impl SM83Snapshot {
     pub fn new() -> Self {
         SM83Snapshot {
