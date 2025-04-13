@@ -1,0 +1,11 @@
+[package]
+name = "gb_tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+json="0.12.4"
+gbemulator={path = "../gbemulator"}
+tokio = { version = "0.2", features = ["full"] }
+
+
