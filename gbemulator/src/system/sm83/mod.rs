@@ -43,6 +43,7 @@ impl SM83 {
         self.data_bus = snapshot.data_bus;
         self.register_file.set_ir(snapshot.ir);
         self.register_file.set_ie(snapshot.ie);
+        self.ime = snapshot.ime;
         self.register_file.set_a(snapshot.a);
         self.register_file.set_b(snapshot.b);
         self.register_file.set_c(snapshot.c);
@@ -53,6 +54,25 @@ impl SM83 {
         self.register_file.set_l(snapshot.l);
         self.register_file.set_sp(snapshot.sp);
         self.register_file.set_pc(snapshot.pc);
+    }
+
+    pub fn to_snapshot(&self) -> SM83Snapshot {
+        let rf = &self.register_file;
+        let snapshot = SM83Snapshot::new()
+            .with_ir(rf.get_ir())
+            .with_ie(rf.get_ie())
+            .with_ime(self.ime)
+            .with_a(rf.get_a())
+            .with_b(rf.get_b())
+            .with_c(rf.get_c())
+            .with_d(rf.get_d())
+            .with_e(rf.get_e())
+            .with_f(rf.get_f())
+            .with_h(rf.get_h())
+            .with_l(rf.get_l())
+            .with_sp(rf.get_sp())
+            .with_pc(rf.get_pc());
+        return snapshot;
     }
 
     pub fn interrupt_enabled(&self) -> bool {
@@ -85,6 +105,12 @@ impl SM83 {
         self.read_ram(ram);
         self.register_file.set_ir(self.data_bus);
         self.increase_pc();
+    }
+
+    pub fn prefetch(&mut self, ram: &RAM) {
+        self.address_bus = self.register_file.get_pc();
+        self.read_ram(ram);
+        self.register_file.set_ir(self.data_bus);
     }
 
     fn read_ram(&mut self, ram: &RAM) {
@@ -215,6 +241,12 @@ impl SM83 {
     pub async fn next(&mut self, ram: &mut RAM) {
         let ir = self.register_file.get_ir();
         let op_code = OpCode::from_ir(ir);
+        println!(
+            "pc: {} ir: {}, op: {:?}",
+            self.register_file.get_pc(),
+            ir,
+            op_code
+        );
 
         match op_code {
             None => {
@@ -361,6 +393,7 @@ impl SM83 {
                 let reg = ir >> 4 & 0x03;
                 let value = self.read_16b_ram(ram).await;
                 self.register_file.set16(reg, value).unwrap();
+                println!("register {}, value {:X}", reg, value);
                 self.fetch_cycle(ram);
             }
             Some(OpCode::LD_nn_SP) => {
@@ -532,7 +565,7 @@ impl SM83 {
                     ALU::decrement(self.register_file.get(reg).unwrap())
                 };
                 self.register_file.set(reg, res).unwrap();
-                self.register_file.set_f(flags);
+                self.register_file.or_flags(flags);
                 self.fetch_cycle(ram);
             }
             Some(OpCode::INC_HL) | Some(OpCode::DEC_HL) => {
@@ -593,6 +626,13 @@ impl SM83 {
             Some(OpCode::ADD_HL_rr) => {
                 let reg = (ir & 0b0011_0000) >> 4;
                 let v1 = self.register_file.get16(reg).unwrap();
+                println!(
+                    "r: {}, HL: {:X}, rr: {:X}",
+                    reg,
+                    self.register_file.get_hl(),
+                    v1
+                );
+
                 let lsb_v1 = (v1 & 0x00FF) as u8;
                 let msb_v1 = ((v1 & 0xFF00) >> 8) as u8;
                 let (res_lsb, flags) = ALU::add(lsb_v1, self.register_file.get_l());
@@ -601,7 +641,9 @@ impl SM83 {
                 let (res_msb, flags) =
                     ALU::add3(msb_v1, self.register_file.get_h(), (flags & 0x10) >> 4);
                 self.register_file.set_h(res_msb);
-                self.register_file.set_f(flags);
+                let previous_zero_flag = self.register_file.get_f() & 0x80;
+                self.register_file
+                    .set_f(previous_zero_flag | (flags & 0x7F));
                 self.fetch_cycle(ram);
             }
             Some(OpCode::ADD_SP_e) => {

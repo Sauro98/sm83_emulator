@@ -87,6 +87,16 @@ impl SM83Snapshot {
         self
     }
 
+    pub fn with_ir(mut self, v: u8) -> Self {
+        self.ir = v;
+        self
+    }
+
+    pub fn with_ie(mut self, v: u8) -> Self {
+        self.ie = v;
+        self
+    }
+
     pub fn with_a(mut self, v: u8) -> Self {
         self.a = v;
         self
@@ -125,5 +135,66 @@ impl SM83Snapshot {
     pub fn with_l(mut self, v: u8) -> Self {
         self.l = v;
         self
+    }
+
+    pub fn compare(&self, other: &SM83Snapshot) -> Result<(), String> {
+        let mut error = String::new();
+        if self.address_bus != other.address_bus {
+            error += format!(
+                "address_bus is not equal: {} vs {}\n",
+                self.address_bus, other.address_bus
+            )
+            .as_str();
+        }
+        if self.data_bus != other.data_bus {
+            error += format!(
+                "data_bus is not equal: {} vs {}\n",
+                self.data_bus, other.data_bus
+            )
+            .as_str();
+        }
+        if self.ir != other.ir {
+            error += format!("ir is not equal: {} vs {}\n", self.ir, other.ir).as_str();
+        }
+        if self.ie != other.ie {
+            error += format!("ie is not equal: {} vs {}\n", self.ie, other.ie).as_str();
+        }
+        if self.a != other.a {
+            error += format!("a is not equal: {:x} vs {:x}\n", self.a, other.a).as_str();
+        }
+        if self.b != other.b {
+            error += format!("b is not equal: {:x} vs {:x}\n", self.b, other.b).as_str();
+        }
+        if self.c != other.c {
+            error += format!("c is not equal: {:x} vs {:x}\n", self.c, other.c).as_str();
+        }
+        if self.d != other.d {
+            error += format!("d is not equal: {:x} vs {:x}\n", self.d, other.d).as_str();
+        }
+        if self.e != other.e {
+            error += format!("e is not equal: {:x} vs {:x}\n", self.e, other.e).as_str();
+        }
+        if self.f != other.f {
+            error += format!("f is not equal: {:x} vs {:x}\n", self.f, other.f).as_str();
+        }
+        if self.h != other.h {
+            error += format!("h is not equal: {:x} vs {:x}\n", self.h, other.h).as_str();
+        }
+        if self.l != other.l {
+            error += format!("l is not equal: {:x} vs {:x}\n", self.l, other.l).as_str();
+        }
+        if self.sp != other.sp {
+            error += format!("sp is not equal: {} vs {}\n", self.sp, other.sp).as_str();
+        }
+        if self.pc != other.pc {
+            error += format!("pc is not equal: {} vs {}\n", self.pc, other.pc).as_str();
+        }
+        if self.ime != other.ime {
+            error += format!("ime is not equal: {} vs {}\n", self.ime, other.ime).as_str();
+        }
+        if error.is_empty() {
+            return Ok(());
+        }
+        return Err(error);
     }
 }

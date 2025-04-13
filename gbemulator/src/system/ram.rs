@@ -1,11 +1,15 @@
 pub struct RAM {
-    data: [u8; u16::MAX as usize + 1],
+    data: std::vec::Vec<u8>,
+    capacity: usize,
 }
 
 impl RAM {
     pub fn new() -> RAM {
+        let capacity = u16::MAX as usize + 1;
+        let data = vec![0; capacity];
         RAM {
-            data: [0; u16::MAX as usize + 1],
+            data: data,
+            capacity: capacity,
         }
     }
 

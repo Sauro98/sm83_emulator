@@ -31,6 +31,7 @@ impl ALU {
         let (diff, mut flags) =
             Self::add3(v1, Self::twos_complement(v2), Self::twos_complement(v3));
         flags |= 0x40;
+        flags ^= 0x20;
         (diff, flags)
     }
     pub fn sub(v1: u8, v2: u8) -> (u8, u8) {

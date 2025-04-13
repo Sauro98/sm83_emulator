@@ -317,6 +317,11 @@ impl RegisterFile {
         self.af.write_second(self.af.second() | 0x10);
     }
 
+    pub fn or_flags(&mut self, flags: u8) {
+        self.af
+            .write_second((flags & 0xE0) | (self.af.second() & 0x1F));
+    }
+
     pub fn flip_carry_flag(&mut self) {
         // xor with the carry bit mask:
         // the other bits are left untouched since 1^0 = 1 and 0^0=0
