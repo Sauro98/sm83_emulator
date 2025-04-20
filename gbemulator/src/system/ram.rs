@@ -1,5 +1,6 @@
 pub struct RAM {
     data: std::vec::Vec<u8>,
+    #[allow(dead_code)]
     capacity: usize,
 }
 

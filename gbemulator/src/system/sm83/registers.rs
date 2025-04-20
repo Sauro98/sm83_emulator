@@ -325,14 +325,6 @@ impl RegisterFile {
         self.af.write_second(self.af.second() & 0xBF);
     }
 
-    pub fn get_half_carry_flag(&self) -> u8 {
-        (self.af.second() & 0x20) >> 5
-    }
-
-    pub fn get_negative_flag(&self) -> u8 {
-        (self.af.second() & 0x40) >> 6
-    }
-
     pub fn set_half_carry_flag(&mut self) {
         self.af.write_second(self.af.second() | 0x20);
     }
