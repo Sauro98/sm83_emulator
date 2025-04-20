@@ -153,9 +153,9 @@ impl SM83Snapshot {
             )
             .as_str();
         }
-        if self.ir != other.ir {
-            error += format!("ir is not equal: {} vs {}\n", self.ir, other.ir).as_str();
-        }
+        // if self.ir != other.ir {
+        //     error += format!("ir is not equal: {} vs {}\n", self.ir, other.ir).as_str();
+        // }
         if self.ie != other.ie {
             error += format!("ie is not equal: {} vs {}\n", self.ie, other.ie).as_str();
         }

@@ -39,4 +39,8 @@ impl System {
     pub fn to_snapshot(&self) -> SM83Snapshot {
         return self.cpu.to_snapshot();
     }
+
+    pub fn get_ram(&self) -> &ram::RAM {
+        &self.ram
+    }
 }

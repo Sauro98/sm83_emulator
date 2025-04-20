@@ -217,17 +217,15 @@ impl RegisterFile {
         } else if reg == 0x01 {
             self.set_c(val);
         } else if reg == 0x02 {
-            self.set_a(val);
-        } else if reg == 0x03 {
-            self.set_f(val);
-        } else if reg == 0x04 {
             self.set_d(val);
-        } else if reg == 0x05 {
+        } else if reg == 0x03 {
             self.set_e(val);
-        } else if reg == 0x06 {
+        } else if reg == 0x04 {
             self.set_h(val);
-        } else if reg == 0x07 {
+        } else if reg == 0x05 {
             self.set_l(val);
+        } else if reg == 0x07 {
+            self.set_a(val);
         } else {
             return Err(format!("unrecognized register {}", u8::to_string(&reg)));
         }
@@ -255,7 +253,7 @@ impl RegisterFile {
         }
     }
 
-    pub fn get16(&self, reg: u8) -> Result<u16, std::string::String> {
+    pub fn get16_dd(&self, reg: u8) -> Result<u16, std::string::String> {
         if reg == 0x00 {
             Ok(self.get_bc())
         } else if reg == 0x01 {
@@ -269,15 +267,45 @@ impl RegisterFile {
         }
     }
 
-    pub fn set16(&mut self, reg: u8, val: u16) -> Result<(), std::string::String> {
+    pub fn get16_qq(&self, reg: u8) -> Result<u16, std::string::String> {
+        if reg == 0x00 {
+            Ok(self.get_bc())
+        } else if reg == 0x01 {
+            Ok(self.get_de())
+        } else if reg == 0x02 {
+            Ok(self.get_hl())
+        } else if reg == 0x03 {
+            Ok(self.get_af())
+        } else {
+            Err(format!("unrecognized register {}", u8::to_string(&reg)))
+        }
+    }
+
+    pub fn set16_dd(&mut self, reg: u8, val: u16) -> Result<(), std::string::String> {
         if reg == 0x00 {
             self.set_bc(val);
         } else if reg == 0x01 {
-            self.set_af(val);
-        } else if reg == 0x02 {
             self.set_de(val);
-        } else if reg == 0x03 {
+        } else if reg == 0x02 {
             self.set_hl(val);
+        } else if reg == 0x03 {
+            self.set_sp(val);
+        } else {
+            return Err(format!("unrecognized register {}", u8::to_string(&reg)));
+        }
+
+        Ok(())
+    }
+
+    pub fn set16_qq(&mut self, reg: u8, val: u16) -> Result<(), std::string::String> {
+        if reg == 0x00 {
+            self.set_bc(val);
+        } else if reg == 0x01 {
+            self.set_de(val);
+        } else if reg == 0x02 {
+            self.set_hl(val);
+        } else if reg == 0x03 {
+            self.set_af(val & 0xFFF0);
         } else {
             return Err(format!("unrecognized register {}", u8::to_string(&reg)));
         }
@@ -299,6 +327,10 @@ impl RegisterFile {
 
     pub fn get_half_carry_flag(&self) -> u8 {
         (self.af.second() & 0x20) >> 5
+    }
+
+    pub fn get_negative_flag(&self) -> u8 {
+        (self.af.second() & 0x40) >> 6
     }
 
     pub fn set_half_carry_flag(&mut self) {

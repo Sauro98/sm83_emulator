@@ -241,12 +241,12 @@ impl SM83 {
     pub async fn next(&mut self, ram: &mut RAM) {
         let ir = self.register_file.get_ir();
         let op_code = OpCode::from_ir(ir);
-        println!(
-            "pc: {} ir: {}, op: {:?}",
+        /*println!(
+            "pc: {} ir: 0x{:X}, op: {:?}",
             self.register_file.get_pc(),
             ir,
             op_code
-        );
+        );*/
 
         match op_code {
             None => {
@@ -392,8 +392,7 @@ impl SM83 {
             Some(OpCode::LD_rr_nn) => {
                 let reg = ir >> 4 & 0x03;
                 let value = self.read_16b_ram(ram).await;
-                self.register_file.set16(reg, value).unwrap();
-                println!("register {}, value {:X}", reg, value);
+                self.register_file.set16_dd(reg, value).unwrap();
                 self.fetch_cycle(ram);
             }
             Some(OpCode::LD_nn_SP) => {
@@ -417,7 +416,7 @@ impl SM83 {
             }
             Some(OpCode::PUSH_rr) => {
                 let reg = (ir & 0x30) >> 4;
-                let val = self.register_file.get16(reg).unwrap();
+                let val = self.register_file.get16_qq(reg).unwrap();
                 self.push_stack();
                 self.tick_clock().await;
                 self.data_bus = ((val & 0xFF00) >> 8) as u8;
@@ -440,7 +439,7 @@ impl SM83 {
                 let val = val | ((self.data_bus as u16) << 8);
                 self.pop_stack();
                 self.tick_clock().await;
-                self.register_file.set16(reg, val).unwrap();
+                self.register_file.set16_qq(reg, val).unwrap();
                 self.fetch_cycle(ram);
             }
             Some(OpCode::LD_HL_SPe) => {
@@ -449,8 +448,7 @@ impl SM83 {
                 self.increase_pc();
                 self.tick_clock().await;
                 let (sum, flags) = ALU::add(self.register_file.get_p(), e);
-                let flags = if sum == 0 { flags | 0x80 } else { flags };
-                self.register_file.set_f(flags);
+                self.register_file.set_f(flags & 0x30);
                 self.register_file.set_l(sum);
                 self.tick_clock().await;
                 let sign = e & 0x80;
@@ -578,7 +576,7 @@ impl SM83 {
                     ALU::decrement(self.data_bus)
                 };
                 self.data_bus = res;
-                self.register_file.set_f(flags);
+                self.register_file.or_flags(flags & 0xE0);
                 self.write_ram(ram);
                 self.tick_clock().await;
                 self.fetch_cycle(ram);
@@ -596,11 +594,8 @@ impl SM83 {
                 self.fetch_cycle(ram);
             }
             Some(OpCode::DAA) => {
-                let (res, flags) = ALU::decimal_adjust(
-                    self.register_file.get_a(),
-                    self.register_file.get_carry_flag() == 1,
-                    self.register_file.get_half_carry_flag() == 1,
-                );
+                let (res, flags) =
+                    ALU::decimal_adjust(self.register_file.get_a(), self.register_file.get_f());
                 self.register_file.set_a(res);
                 self.register_file.set_f(flags);
                 self.fetch_cycle(ram);
@@ -613,25 +608,19 @@ impl SM83 {
             }
             Some(OpCode::INC_rr) | Some(OpCode::DEC_rr) => {
                 let reg = (ir & 0b0011_0000) >> 4;
-                self.address_bus = self.register_file.get16(reg).unwrap();
+                self.address_bus = self.register_file.get16_dd(reg).unwrap();
                 if op_code.unwrap() == OpCode::INC_rr {
                     self.idu_increment();
                 } else {
                     self.idu_decrement();
                 }
-                self.register_file.set16(reg, self.address_bus).unwrap();
+                self.register_file.set16_dd(reg, self.address_bus).unwrap();
                 self.tick_clock().await;
                 self.fetch_cycle(ram);
             }
             Some(OpCode::ADD_HL_rr) => {
                 let reg = (ir & 0b0011_0000) >> 4;
-                let v1 = self.register_file.get16(reg).unwrap();
-                println!(
-                    "r: {}, HL: {:X}, rr: {:X}",
-                    reg,
-                    self.register_file.get_hl(),
-                    v1
-                );
+                let v1 = self.register_file.get16_dd(reg).unwrap();
 
                 let lsb_v1 = (v1 & 0x00FF) as u8;
                 let msb_v1 = ((v1 & 0xFF00) >> 8) as u8;
@@ -653,7 +642,7 @@ impl SM83 {
                 self.tick_clock().await;
                 let (sum, flags) = ALU::add(self.register_file.get_p(), e);
                 let flags = if sum == 0 { flags | 0x80 } else { flags };
-                self.register_file.set_f(flags);
+                self.register_file.set_f(flags & 0x30);
                 self.register_file.set_p(sum);
                 self.tick_clock().await;
                 let sign = e & 0x80;
@@ -685,14 +674,16 @@ impl SM83 {
                     _ => (0, 0),
                 };
                 self.register_file.set_a(res);
-                self.register_file.set_f(flags);
+                self.register_file.set_f(flags & 0x10);
                 self.fetch_cycle(ram);
             }
             Some(OpCode::CB_PREFIX) => {
                 self.fetch_cycle(ram);
                 self.tick_clock().await;
                 let cb_ir = self.register_file.get_ir();
-                match CBPrefixOpCode::from_ir(cb_ir) {
+                let cb_opcode = CBPrefixOpCode::from_ir(cb_ir);
+                //println!("CB opcode: {:?}", cb_opcode);
+                match cb_opcode {
                     Some(CBPrefixOpCode::RLC_r) => {
                         let reg = cb_ir & 0x07;
                         let (res, flags) =
@@ -803,14 +794,16 @@ impl SM83 {
                     }
                     Some(CBPrefixOpCode::SWAP_r) => {
                         let reg = cb_ir & 0x07;
-                        let res = ALU::swap_nibbles(self.register_file.get(reg).unwrap());
+                        let (res, flags) = ALU::swap_nibbles(self.register_file.get(reg).unwrap());
                         self.register_file.set(reg, res).unwrap();
+                        self.register_file.set_f(flags);
                     }
                     Some(CBPrefixOpCode::SWAP_HL) => {
                         self.address_bus = self.register_file.get_hl();
                         self.read_ram(ram);
                         self.tick_clock().await;
-                        let res = ALU::swap_nibbles(self.data_bus);
+                        let (res, flags) = ALU::swap_nibbles(self.data_bus);
+                        self.register_file.set_f(flags);
                         self.data_bus = res;
                         self.write_ram(ram);
                         self.tick_clock().await
@@ -836,7 +829,7 @@ impl SM83 {
                         let reg = cb_ir & 0x07;
                         let bit = (cb_ir & 0x38) >> 3;
                         let flags = ALU::test_bit(self.register_file.get(reg).unwrap(), bit);
-                        self.register_file.set_f(flags);
+                        self.register_file.or_flags(flags & 0xE0);
                     }
                     Some(CBPrefixOpCode::BIT_b_HL) => {
                         self.address_bus = self.register_file.get_hl();
@@ -844,7 +837,7 @@ impl SM83 {
                         self.tick_clock().await;
                         let bit = (cb_ir & 0x38) >> 3;
                         let flags = ALU::test_bit(self.data_bus, bit);
-                        self.register_file.set_f(flags);
+                        self.register_file.or_flags(flags & 0xE0);
                     }
                     Some(CBPrefixOpCode::SET_b_r) => {
                         let reg = cb_ir & 0x07;
@@ -991,8 +984,8 @@ impl SM83 {
                 self.fetch_cycle(ram);
             }
             Some(OpCode::EI) => {
-                self.ime = true;
                 self.fetch_cycle(ram);
+                self.ime = true;
             }
             Some(OpCode::HALT) => {
                 self.fetch_cycle(ram);
@@ -1000,8 +993,9 @@ impl SM83 {
                 self.idu_decrement();
                 self.register_file.set_pc(self.address_bus);
             }
-            Some(x) => {
-                panic!("OPCODE not yet implemented {:?}", x);
+            Some(OpCode::STOP) => {
+                // TODO implement actual stop function
+                self.fetch_cycle(ram);
             }
         }
         self.tick_clock().await;
