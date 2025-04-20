@@ -34,7 +34,7 @@ fn test_sub() {
     let v2: u8 = 0b00000110;
     let (res, flags) = ALU::sub(v1, v2);
     assert_eq!(res, 0b00000010);
-    assert_eq!(flags, 0b0111_0000);
+    assert_eq!(flags, 0b0100_0000);
 }
 
 #[test]
@@ -60,17 +60,17 @@ fn test_decrement() {
     let v = 0b0000_0001;
     let (r, f) = ALU::decrement(v);
     assert_eq!(r, 0b0000_0000);
-    assert_eq!(f, 0b1110_0000);
+    assert_eq!(f, 0b1100_0000);
 
     let v = 0b0000_0000;
     let (r, f) = ALU::decrement(v);
     assert_eq!(r, 0b1111_1111);
-    assert_eq!(f, 0b0100_0000);
+    assert_eq!(f, 0b0110_0000);
 
     let v = 0b0000_0100;
     let (r, f) = ALU::decrement(v);
     assert_eq!(r, 0b0000_0011);
-    assert_eq!(f, 0b0110_0000);
+    assert_eq!(f, 0b0100_0000);
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn test_decimal_adjust() {
     let (res, flags) = ALU::add(v1, v2);
     assert_eq!(res, 0x7D);
     assert_eq!(flags, 0);
-    let (res, flags) = ALU::decimal_adjust(res, flags & 0x10 > 0, flags & 0x20 > 0);
+    let (res, flags) = ALU::decimal_adjust(res, flags);
     assert_eq!(res, 0x83);
     assert_eq!(flags, 0);
 
@@ -89,7 +89,7 @@ fn test_decimal_adjust() {
     let (res, flags) = ALU::add(v1, v2);
     assert_eq!(res, 0x33);
     assert_eq!(flags, 0);
-    let (res, flags) = ALU::decimal_adjust(res, flags & 0x10 > 0, flags & 0x20 > 0);
+    let (res, flags) = ALU::decimal_adjust(res, flags);
     assert_eq!(res, 0x33);
     assert_eq!(flags, 0);
 
@@ -98,7 +98,7 @@ fn test_decimal_adjust() {
     let (res, flags) = ALU::add(v1, v2);
     assert_eq!(res, 0x20);
     assert_eq!(flags, 0x20);
-    let (res, flags) = ALU::decimal_adjust(res, flags & 0x10 > 0, flags & 0x20 > 0);
+    let (res, flags) = ALU::decimal_adjust(res, flags);
     assert_eq!(res, 0x26);
     assert_eq!(flags, 0);
 }
@@ -171,10 +171,10 @@ fn test_shift_logical() {
 #[test]
 fn test_swap_nibbles() {
     let v = 0b1000_0001;
-    let res = ALU::swap_nibbles(v);
+    let (res, _) = ALU::swap_nibbles(v);
     assert_eq!(res, 0b0001_1000);
     let v = 0xAB;
-    let res = ALU::swap_nibbles(v);
+    let (res, _) = ALU::swap_nibbles(v);
     assert_eq!(res, 0xBA);
 }
 

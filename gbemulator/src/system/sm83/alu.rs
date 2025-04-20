@@ -92,7 +92,7 @@ impl ALU {
             if (v & 0x0F) > 0x09 {
                 adj |= 0x06;
             }
-            if (v > 0x99) {
+            if v > 0x99 {
                 adj |= 0x60;
             }
         }

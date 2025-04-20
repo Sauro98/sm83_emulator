@@ -9,14 +9,14 @@ pub const LD_C_N: u8 = 0x0E;
 pub const LD_B_C: u8 = 0x41;
 pub const LD_B_HL: u8 = 0x46;
 pub const LD_HL_B: u8 = 0x70;
-pub const LD_A_N: u8 = 0x16;
-pub const LD_DE_NN: u8 = 0x21;
+pub const LD_A_N: u8 = 0x3e;
+pub const LD_DE_NN: u8 = 0x11;
 pub const LD_BC_NN: u8 = 0x01;
-pub const LD_HL_NN: u8 = 0x31;
+pub const LD_HL_NN: u8 = 0x21;
 pub const PUSH_BC: u8 = 0xC5;
-pub const PUSH_HL: u8 = 0xF5;
+pub const PUSH_HL: u8 = 0xE5;
 pub const POP_BC: u8 = 0xC1;
-pub const POP_HL: u8 = 0xF1;
+pub const POP_HL: u8 = 0xE1;
 pub const ADD_B: u8 = 0x80;
 pub const ADD_C: u8 = 0x81;
 pub const ADC_B: u8 = 0x88;
@@ -983,7 +983,7 @@ async fn test_sub_r() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
     assert_eq!(cpu.get_register(RegisterName::A), 1);
-    assert_eq!(cpu.get_register(RegisterName::F), 0x70);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x40);
     assert_eq!(cpu.cycle_count, 1);
 }
 
@@ -1090,7 +1090,7 @@ async fn test_cp_r() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
     assert_eq!(cpu.get_register(RegisterName::A), 4);
-    assert_eq!(cpu.get_register(RegisterName::F), 0x70);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x40);
     assert_eq!(cpu.cycle_count, 1);
 }
 
@@ -1109,7 +1109,7 @@ async fn test_cp_hl() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
     assert_eq!(cpu.get_register(RegisterName::A), 7);
-    assert_eq!(cpu.get_register(RegisterName::F), 0x70);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x40);
     assert_eq!(cpu.cycle_count, 2);
 }
 
@@ -1128,7 +1128,7 @@ async fn test_cp_n() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
     assert_eq!(cpu.get_register(RegisterName::A), 5);
-    assert_eq!(cpu.get_register(RegisterName::F), 0xF0);
+    assert_eq!(cpu.get_register(RegisterName::F), 0xC0);
     assert_eq!(cpu.cycle_count, 2);
 }
 
@@ -1198,7 +1198,7 @@ async fn test_dec_r() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
     assert_eq!(cpu.get_register(RegisterName::B), 0);
-    assert_eq!(cpu.get_register(RegisterName::F), 0xE0);
+    assert_eq!(cpu.get_register(RegisterName::F), 0xC0);
     assert_eq!(cpu.cycle_count, 1);
 }
 
@@ -1216,7 +1216,7 @@ async fn test_dec_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
-    assert_eq!(cpu.get_register(RegisterName::F), 0x60);
+    assert_eq!(cpu.get_register(RegisterName::F), 0x40);
     assert_eq!(*ram.get_at(0xEEEE).unwrap(), 10);
     assert_eq!(cpu.cycle_count, 3);
 }
@@ -1688,7 +1688,7 @@ async fn test_rl_r() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
     assert_eq!(cpu.get_register(RegisterName::B), 0b0000_0000);
-    assert_eq!(cpu.get_register(RegisterName::F), 0b0001_0000);
+    assert_eq!(cpu.get_register(RegisterName::F), 0b1001_0000);
     assert_eq!(cpu.cycle_count, 2);
 }
 
@@ -1708,7 +1708,7 @@ async fn test_rl_hl() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
     assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b0000_0000);
-    assert_eq!(cpu.get_register(RegisterName::F), 0b0001_0000);
+    assert_eq!(cpu.get_register(RegisterName::F), 0b1001_0000);
     assert_eq!(cpu.cycle_count, 4);
 }
 
@@ -1766,7 +1766,7 @@ async fn test_rr_r() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
     assert_eq!(cpu.get_register(RegisterName::B), 0b0000_0000);
-    assert_eq!(cpu.get_register(RegisterName::F), 0b0001_0000);
+    assert_eq!(cpu.get_register(RegisterName::F), 0b1001_0000);
     assert_eq!(cpu.cycle_count, 2);
 }
 
