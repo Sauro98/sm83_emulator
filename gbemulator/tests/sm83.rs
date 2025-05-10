@@ -176,7 +176,7 @@ async fn test_ldhlr() {
     assert_eq!(cpu.get_register(RegisterName::H), 0x00);
     assert_eq!(cpu.get_register(RegisterName::L), 0x0A);
     assert_eq!(cpu.get_register(RegisterName::B), 0xEE);
-    assert_eq!(*ram.get_at(0x000A).unwrap(), 0xEE);
+    assert_eq!(ram.get_at(0x000A).unwrap(), 0xEE);
     assert_eq!(cpu.cycle_count, 7);
 }
 
@@ -210,7 +210,7 @@ async fn test_ldhln() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0x06);
     assert_eq!(cpu.get_register(RegisterName::H), 0x00);
     assert_eq!(cpu.get_register(RegisterName::L), 0x0A);
-    assert_eq!(*ram.get_at(0x000A).unwrap(), 0xEE);
+    assert_eq!(ram.get_at(0x000A).unwrap(), 0xEE);
     assert_eq!(cpu.cycle_count, 6);
 }
 
@@ -268,7 +268,7 @@ async fn test_ldbca() {
     assert_eq!(cpu.get_register(RegisterName::C), 0xAA);
     assert_eq!(cpu.get_register(RegisterName::BC), 0x00AA);
     assert_eq!(cpu.get_register(RegisterName::A), 0x00);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0x00);
     assert_eq!(cpu.cycle_count, 3);
     cpu.next(&mut ram).await; // cycle 4: run, read value from ram increase pc to 5
                               // cycle 5: copy value, read PC to IR, increase PC to 6, ready to execute instruction and PC 5
@@ -276,7 +276,7 @@ async fn test_ldbca() {
     assert_eq!(cpu.get_register(RegisterName::IR), LD_BC_A as u16);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x06);
     assert_eq!(cpu.get_register(RegisterName::A), 0xEE);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0x00);
     assert_eq!(cpu.cycle_count, 5);
     cpu.next(&mut ram).await; // cycle 6: run, write value to ram
                               // cycle 7: read PC to IR, increase PC to 7, ready to execute instruction and PC 6
@@ -284,7 +284,7 @@ async fn test_ldbca() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x07);
     assert_eq!(cpu.get_register(RegisterName::A), 0xEE);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0xEE);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0xEE);
     assert_eq!(cpu.cycle_count, 7);
 }
 
@@ -342,7 +342,7 @@ async fn test_lddea() {
     assert_eq!(cpu.get_register(RegisterName::E), 0xAA);
     assert_eq!(cpu.get_register(RegisterName::DE), 0x00AA);
     assert_eq!(cpu.get_register(RegisterName::A), 0x00);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0x00);
     assert_eq!(cpu.cycle_count, 3);
     cpu.next(&mut ram).await; // cycle 4: run, read value from ram increase pc to 5
                               // cycle 5: copy value, read PC to IR, increase PC to 6, ready to execute instruction and PC 5
@@ -350,7 +350,7 @@ async fn test_lddea() {
     assert_eq!(cpu.get_register(RegisterName::IR), LD_DE_A as u16);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x06);
     assert_eq!(cpu.get_register(RegisterName::A), 0xEE);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0x00);
     assert_eq!(cpu.cycle_count, 5);
     cpu.next(&mut ram).await; // cycle 6: run, write value to ram
                               // cycle 7: read PC to IR, increase PC to 7, ready to execute instruction and PC 6
@@ -358,7 +358,7 @@ async fn test_lddea() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x07);
     assert_eq!(cpu.get_register(RegisterName::A), 0xEE);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0xEE);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0xEE);
     assert_eq!(cpu.cycle_count, 7);
 }
 
@@ -398,7 +398,7 @@ async fn test_ldnn_a() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x06);
     assert_eq!(cpu.get_register(RegisterName::A), 0xEE);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0xEE);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0xEE);
     assert_eq!(cpu.cycle_count, 6);
 }
 
@@ -447,7 +447,7 @@ async fn test_ldhca() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x6);
-    assert_eq!(*ram.get_at(0x0FFEE).unwrap(), 0xBB);
+    assert_eq!(ram.get_at(0x0FFEE).unwrap(), 0xBB);
     assert_eq!(cpu.cycle_count, 6);
 }
 
@@ -483,11 +483,11 @@ async fn test_ldhn_a() {
     assert_eq!(cpu.get_register(RegisterName::A), 0x00);
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::A), 0xBB);
-    assert_eq!(*ram.get_at(0x0FFEE).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x0FFEE).unwrap(), 0x00);
     assert_eq!(cpu.cycle_count, 2);
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::A), 0xBB);
-    assert_eq!(*ram.get_at(0x0FFEE).unwrap(), 0xBB);
+    assert_eq!(ram.get_at(0x0FFEE).unwrap(), 0xBB);
     assert_eq!(cpu.cycle_count, 5);
 }
 
@@ -534,14 +534,14 @@ async fn test_ldhlm_a() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::A), 0xEE);
     assert_eq!(cpu.get_register(RegisterName::HL), 0x00AA);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0x00);
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_data_bus(), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x07);
     assert_eq!(cpu.get_register(RegisterName::A), 0xEE);
     assert_eq!(cpu.get_register(RegisterName::HL), 0x00A9);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0xEE);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0xEE);
     assert_eq!(cpu.cycle_count, 7);
 }
 
@@ -588,14 +588,14 @@ async fn test_ldhlp_a() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::A), 0xEE);
     assert_eq!(cpu.get_register(RegisterName::HL), 0x00AA);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0x00);
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_data_bus(), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x07);
     assert_eq!(cpu.get_register(RegisterName::A), 0xEE);
     assert_eq!(cpu.get_register(RegisterName::HL), 0x00AB);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0xEE);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0xEE);
     assert_eq!(cpu.cycle_count, 7);
 }
 
@@ -669,16 +669,16 @@ async fn test_ldnn_sp() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0x05);
     assert_eq!(cpu.get_register(RegisterName::HL), 0x02AA);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x02AA);
-    assert_eq!(*ram.get_at(0x01AB).unwrap(), 0x00);
-    assert_eq!(*ram.get_at(0x01AC).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x01AB).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x01AC).unwrap(), 0x00);
     assert_eq!(cpu.cycle_count, 5);
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x08);
     assert_eq!(cpu.get_register(RegisterName::HL), 0x02AA);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x02AA);
-    assert_eq!(*ram.get_at(0x01AB).unwrap(), 0xAA);
-    assert_eq!(*ram.get_at(0x01AC).unwrap(), 0x02);
+    assert_eq!(ram.get_at(0x01AB).unwrap(), 0xAA);
+    assert_eq!(ram.get_at(0x01AC).unwrap(), 0x02);
     assert_eq!(cpu.cycle_count, 10);
 }
 
@@ -704,16 +704,16 @@ async fn test_push_rr() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0x05);
     assert_eq!(cpu.get_register(RegisterName::HL), 0x00AA);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x00AA);
-    assert_eq!(*ram.get_at(0x00AA).unwrap(), 0x00);
-    assert_eq!(*ram.get_at(0x00A9).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x00AA).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x00A9).unwrap(), 0x00);
     assert_eq!(cpu.cycle_count, 5);
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x06);
     assert_eq!(cpu.get_register(RegisterName::HL), 0x00AA);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x00A8);
-    assert_eq!(*ram.get_at(0x00A9).unwrap(), 0x00);
-    assert_eq!(*ram.get_at(0x00A8).unwrap(), 0xAA);
+    assert_eq!(ram.get_at(0x00A9).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x00A8).unwrap(), 0xAA);
     assert_eq!(cpu.cycle_count, 9);
 }
 
@@ -1180,7 +1180,7 @@ async fn test_inc_hl() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
     assert_eq!(cpu.get_register(RegisterName::F), 0x00);
-    assert_eq!(*ram.get_at(0xEEEE).unwrap(), 12);
+    assert_eq!(ram.get_at(0xEEEE).unwrap(), 12);
     assert_eq!(cpu.cycle_count, 3);
 }
 
@@ -1217,7 +1217,7 @@ async fn test_dec_hl() {
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x02);
     assert_eq!(cpu.get_register(RegisterName::F), 0x40);
-    assert_eq!(*ram.get_at(0xEEEE).unwrap(), 10);
+    assert_eq!(ram.get_at(0xEEEE).unwrap(), 10);
     assert_eq!(cpu.cycle_count, 3);
 }
 
@@ -1668,7 +1668,7 @@ async fn test_rlc_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
-    assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b0000_0001);
+    assert_eq!(ram.get_at(0xABCD).unwrap(), 0b0000_0001);
     assert_eq!(cpu.get_register(RegisterName::F), 0b0001_0000);
     assert_eq!(cpu.cycle_count, 4);
 }
@@ -1707,7 +1707,7 @@ async fn test_rl_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
-    assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b0000_0000);
+    assert_eq!(ram.get_at(0xABCD).unwrap(), 0b0000_0000);
     assert_eq!(cpu.get_register(RegisterName::F), 0b1001_0000);
     assert_eq!(cpu.cycle_count, 4);
 }
@@ -1746,7 +1746,7 @@ async fn test_rrc_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
-    assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b0100_0000);
+    assert_eq!(ram.get_at(0xABCD).unwrap(), 0b0100_0000);
     assert_eq!(cpu.get_register(RegisterName::F), 0b0000_0000);
     assert_eq!(cpu.cycle_count, 4);
 }
@@ -1785,7 +1785,7 @@ async fn test_rr_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
-    assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b0100_0000);
+    assert_eq!(ram.get_at(0xABCD).unwrap(), 0b0100_0000);
     assert_eq!(cpu.get_register(RegisterName::F), 0b0001_0000);
     assert_eq!(cpu.cycle_count, 4);
 }
@@ -1824,7 +1824,7 @@ async fn test_sla_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
-    assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b0000_0010);
+    assert_eq!(ram.get_at(0xABCD).unwrap(), 0b0000_0010);
     assert_eq!(cpu.get_register(RegisterName::F), 0b0001_0000);
     assert_eq!(cpu.cycle_count, 4);
 }
@@ -1863,7 +1863,7 @@ async fn test_sra_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
-    assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b1100_0000);
+    assert_eq!(ram.get_at(0xABCD).unwrap(), 0b1100_0000);
     assert_eq!(cpu.get_register(RegisterName::F), 0b0001_0000);
     assert_eq!(cpu.cycle_count, 4);
 }
@@ -1901,7 +1901,7 @@ async fn test_swap_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
-    assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b0001_1000);
+    assert_eq!(ram.get_at(0xABCD).unwrap(), 0b0001_1000);
     assert_eq!(cpu.cycle_count, 4);
 }
 
@@ -1939,7 +1939,7 @@ async fn test_srl_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
-    assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b0100_0000);
+    assert_eq!(ram.get_at(0xABCD).unwrap(), 0b0100_0000);
     assert_eq!(cpu.get_register(RegisterName::F), 0b0001_0000);
     assert_eq!(cpu.cycle_count, 4);
 }
@@ -2026,7 +2026,7 @@ async fn test_res_b_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
-    assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b1000_0000);
+    assert_eq!(ram.get_at(0xABCD).unwrap(), 0b1000_0000);
     assert_eq!(cpu.cycle_count, 4);
 }
 
@@ -2063,7 +2063,7 @@ async fn test_set_b_hl() {
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::PC), 0x03);
-    assert_eq!(*ram.get_at(0xABCD).unwrap(), 0b1000_0001);
+    assert_eq!(ram.get_at(0xABCD).unwrap(), 0b1000_0001);
     assert_eq!(cpu.cycle_count, 4);
 }
 
@@ -2189,8 +2189,8 @@ async fn test_call_nn() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0xAABC);
     assert_eq!(cpu.get_register(RegisterName::IR), 0xEE);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x1232);
-    assert_eq!(*ram.get_at(0x1233).unwrap(), 0x00);
-    assert_eq!(*ram.get_at(0x1232).unwrap(), 0x03);
+    assert_eq!(ram.get_at(0x1233).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x1232).unwrap(), 0x03);
     assert_eq!(cpu.cycle_count, 6);
 }
 
@@ -2211,8 +2211,8 @@ async fn test_call_cc_nn() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0xAABC);
     assert_eq!(cpu.get_register(RegisterName::IR), 0xEE);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x1232);
-    assert_eq!(*ram.get_at(0x1233).unwrap(), 0x00);
-    assert_eq!(*ram.get_at(0x1232).unwrap(), 0x03);
+    assert_eq!(ram.get_at(0x1233).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x1232).unwrap(), 0x03);
     assert_eq!(cpu.cycle_count, 6);
 
     let snapshot = SM83Snapshot::new().with_sp(0x1234).with_f(0x80);
@@ -2243,8 +2243,8 @@ async fn test_ret() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0xAABC);
     assert_eq!(cpu.get_register(RegisterName::IR), RET as u16);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x1232);
-    assert_eq!(*ram.get_at(0x1233).unwrap(), 0x00);
-    assert_eq!(*ram.get_at(0x1232).unwrap(), 0x03);
+    assert_eq!(ram.get_at(0x1233).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x1232).unwrap(), 0x03);
     assert_eq!(cpu.cycle_count, 6);
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::PC), 0x0004);
@@ -2270,8 +2270,8 @@ async fn test_ret_cc() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0xAABC);
     assert_eq!(cpu.get_register(RegisterName::IR), RET_NZ as u16);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x1232);
-    assert_eq!(*ram.get_at(0x1233).unwrap(), 0x00);
-    assert_eq!(*ram.get_at(0x1232).unwrap(), 0x03);
+    assert_eq!(ram.get_at(0x1233).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x1232).unwrap(), 0x03);
     assert_eq!(cpu.cycle_count, 6);
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::PC), 0x0004);
@@ -2287,8 +2287,8 @@ async fn test_ret_cc() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0xAABC);
     assert_eq!(cpu.get_register(RegisterName::IR), RET_NZ as u16);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x1232);
-    assert_eq!(*ram.get_at(0x1233).unwrap(), 0x00);
-    assert_eq!(*ram.get_at(0x1232).unwrap(), 0x03);
+    assert_eq!(ram.get_at(0x1233).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x1232).unwrap(), 0x03);
     assert_eq!(cpu.cycle_count, 6);
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::PC), 0xAABD);
@@ -2313,8 +2313,8 @@ async fn test_reti() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0xAABC);
     assert_eq!(cpu.get_register(RegisterName::IR), RETI as u16);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x1232);
-    assert_eq!(*ram.get_at(0x1233).unwrap(), 0x00);
-    assert_eq!(*ram.get_at(0x1232).unwrap(), 0x03);
+    assert_eq!(ram.get_at(0x1233).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x1232).unwrap(), 0x03);
     assert_eq!(cpu.cycle_count, 6);
     cpu.next(&mut ram).await;
     assert_eq!(cpu.get_register(RegisterName::PC), 0x0004);
@@ -2339,8 +2339,8 @@ async fn test_rst_n() {
     assert_eq!(cpu.get_register(RegisterName::PC), 0x0019);
     assert_eq!(cpu.get_register(RegisterName::IR), 0xCD);
     assert_eq!(cpu.get_register(RegisterName::SP), 0x1232);
-    assert_eq!(*ram.get_at(0x1233).unwrap(), 0x00);
-    assert_eq!(*ram.get_at(0x1232).unwrap(), 0x01);
+    assert_eq!(ram.get_at(0x1233).unwrap(), 0x00);
+    assert_eq!(ram.get_at(0x1232).unwrap(), 0x01);
     assert_eq!(cpu.cycle_count, 4);
 }
 

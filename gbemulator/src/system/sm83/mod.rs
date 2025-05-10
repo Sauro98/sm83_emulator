@@ -114,7 +114,7 @@ impl SM83 {
     }
 
     fn read_ram(&mut self, ram: &RAM) {
-        self.data_bus = *ram.get_at(self.address_bus).unwrap();
+        self.data_bus = ram.get_at(self.address_bus).unwrap();
     }
 
     fn write_ram(&self, ram: &mut RAM) {
@@ -242,7 +242,7 @@ impl SM83 {
         let ir = self.register_file.get_ir();
         let op_code = OpCode::from_ir(ir);
         /*println!(
-            "pc: {} ir: 0x{:X}, op: {:?}",
+            "pc: 0x{:X} ir: 0x{:X}, op: {:?}",
             self.register_file.get_pc(),
             ir,
             op_code
@@ -393,6 +393,7 @@ impl SM83 {
                 let reg = ir >> 4 & 0x03;
                 let value = self.read_16b_ram(ram).await;
                 self.register_file.set16_dd(reg, value).unwrap();
+                //println!("writing {:X} to register {}", value, reg);
                 self.fetch_cycle(ram);
             }
             Some(OpCode::LD_nn_SP) => {
@@ -829,6 +830,7 @@ impl SM83 {
                         let reg = cb_ir & 0x07;
                         let bit = (cb_ir & 0x38) >> 3;
                         let flags = ALU::test_bit(self.register_file.get(reg).unwrap(), bit);
+                        //println!("testing bit {} of register {}: {:X}", bit, reg, flags);
                         self.register_file.or_flags(flags & 0xE0);
                     }
                     Some(CBPrefixOpCode::BIT_b_HL) => {
