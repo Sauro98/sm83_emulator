@@ -6,6 +6,5 @@ edition = "2021"
 [dependencies]
 json="0.12.4"
 gbemulator={path = "../gbemulator"}
-tokio = { version = "0.2", features = ["full"] }
 
 

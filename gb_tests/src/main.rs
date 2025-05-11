@@ -1,8 +1,8 @@
+use gbemulator::system::ram::RAM;
 use gbemulator::system::sm83::snapshot::SM83Snapshot;
 use gbemulator::system::System;
-use gbemulator::system::{ram::RAM, sm83::SM83};
 use json::{self, JsonValue};
-use std::{fs, io::Error};
+use std::fs;
 
 fn read_u8_value(json_state: &JsonValue, key: &str) -> u8 {
     if json_state.has_key(key) {
@@ -78,7 +78,7 @@ fn read_sm83_state(json_state: &JsonValue) -> (SM83Snapshot, RAM) {
     return (snapshot, ram);
 }
 
-async fn read_test_case(json_content: &json::JsonValue) -> Result<(), ()> {
+fn read_test_case(json_content: &json::JsonValue) -> Result<(), ()> {
     assert!(json_content.has_key("name"));
     assert!(json_content.has_key("initial"));
     assert!(json_content.has_key("final"));
@@ -94,7 +94,7 @@ async fn read_test_case(json_content: &json::JsonValue) -> Result<(), ()> {
     let (initial_snapshot, intial_ram) = read_sm83_state(initial_state);
     let mut simulator = System::from_ram_snapshot(1e6, intial_ram, initial_snapshot);
     //for cycle_json in cycles {
-    simulator.next().await;
+    simulator.next();
     //}
     let (mut final_snapshot, _) = read_sm83_state(final_state);
     if !json_content["name"].as_str().unwrap().contains("76 ")
@@ -113,7 +113,7 @@ async fn read_test_case(json_content: &json::JsonValue) -> Result<(), ()> {
         panic!("{}", result.err().unwrap());
         return Err(());
     }
-    let ram_result = check_ram(&final_state["ram"], simulator.get_ram());
+    let ram_result = check_ram(&final_state["ram"], &simulator.get_ram());
     if ram_result.is_err() {
         //println!("{}", ram_result.err().unwrap());
         panic!("{}", ram_result.err().unwrap());
@@ -121,9 +121,7 @@ async fn read_test_case(json_content: &json::JsonValue) -> Result<(), ()> {
     }
     Ok(())
 }
-
-#[tokio::main]
-async fn main() {
+fn main() {
     let jsons_path = "./sm83/v1/";
     let succesful_tests_path = "./sm83/succesful_tests.txt";
     let mut succesful_tests_file_contents = fs::read_to_string(succesful_tests_path).unwrap();
@@ -161,7 +159,7 @@ async fn main() {
                 let mut total_passed = 0;
                 for (test_index, test_case) in tests_list.into_iter().enumerate() {
                     println!("test case {}", test_index);
-                    let res = read_test_case(test_case).await;
+                    let res = read_test_case(test_case);
                     total += 1;
                     if res.is_ok() {
                         total_passed += 1;
