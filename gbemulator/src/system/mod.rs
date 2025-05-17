@@ -85,24 +85,46 @@ impl System {
                     println!("Performing DMA");
                     ram.reset_dma_request();
                 }
+                if cpu.get_register(sm83::registers::RegisterName::PC) >= 0xFF {
+                    println!("boot rom ended");
+                }
+            }
+            let cpu = cpu_ref.lock().unwrap();
+            println!(
+                "CPU pc: {:X}",
+                cpu.get_register(sm83::registers::RegisterName::PC)
+            );
+            let dur = std::time::Instant::now().duration_since(start);
+            let elapsed_nanos = dur.as_nanos() as f64;
+            let cycles_per_nano = (n_iter as f64) / elapsed_nanos;
+            let cycles_per_second = cycles_per_nano * 1e9;
+            println!(
+                "CPU Execution frequency {}",
+                format_frequency(cycles_per_second as f32)
+            );
+            println!("{}", cpu.sleep_count());
+        });
+        let lcd_thread_handle = std::thread::spawn(move || {
+            let start = std::time::Instant::now();
+            for _ in 0..n_iter {
+                let mut ram = lcd_ram_ref.lock().unwrap();
+                let mut lcd = lcd_ref.lock().unwrap();
+                lcd.next(&mut ram);
             }
             let dur = std::time::Instant::now().duration_since(start);
             let elapsed_nanos = dur.as_nanos() as f64;
             let cycles_per_nano = (n_iter as f64) / elapsed_nanos;
             let cycles_per_second = cycles_per_nano * 1e9;
             println!(
-                "Execution frequency {}",
+                "LCD Execution frequency {}",
                 format_frequency(cycles_per_second as f32)
             );
-            println!("{}", cpu_ref.lock().unwrap().sleep_count());
         });
-        let lcd_thread_handle = std::thread::spawn(move || {
-            let mut ram = lcd_ram_ref.lock().unwrap();
-            let mut lcd = lcd_ref.lock().unwrap();
-        });
-
+        println!("Wating for join");
         cpu_thread_handle.join().unwrap();
+        println!("CPU joined");
         lcd_thread_handle.join().unwrap();
+        println!("LCD joined");
 
         self
     }

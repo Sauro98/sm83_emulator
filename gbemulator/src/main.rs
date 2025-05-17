@@ -2,7 +2,7 @@ mod system;
 
 fn main() {
     println!("Hello, world!");
-    let gameboy = system::System::new(300_000 as f32);
+    let gameboy = system::System::new(1e6);
     let n_cycles = 1_000_000;
     let _ = gameboy.run(n_cycles);
 }

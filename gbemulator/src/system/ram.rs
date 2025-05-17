@@ -7,6 +7,7 @@ const BOOTLOCKER_UNLOCKED: u8 = 0x00;
 const DMA_ADDRESS: u16 = 0xFF46;
 const LCD_CONTROL_REGISTER_ADDRESS: u16 = 0xFF40;
 const LCD_STATUS_REGISTER_ADDRESS: u16 = 0xFF41;
+const LY_REGISTER_ADDRESS: u16 = 0xFF44;
 
 pub struct RAM {
     data: Mutex<std::vec::Vec<u8>>,
@@ -173,6 +174,22 @@ impl LCDControlRegister {
             value: 0x00,
         }
     }
+
+    pub fn get_lcd_display_enable(&self) -> bool {
+        self.value & 0x80 > 0
+    }
+
+    pub fn get_window_display_enable(&mut self) -> bool {
+        self.value & 0x20 > 0
+    }
+
+    pub fn get_sprite_display_enable(&mut self) -> bool {
+        self.value & 0x02 > 0
+    }
+
+    pub fn get_bg_display_enable(&mut self) -> bool {
+        self.value & 0x01 > 0
+    }
 }
 
 impl MemoryRegister for LCDControlRegister {
@@ -201,9 +218,45 @@ impl LCDStatusRegister {
             value: 0x00,
         }
     }
+
+    pub fn set_status(&mut self, status: u8) {
+        self.value = status;
+    }
 }
 
 impl MemoryRegister for LCDStatusRegister {
+    fn reset(&mut self) {
+        self.value = 0x00;
+    }
+
+    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
+        ram.set_at(self.address, self.value)
+    }
+
+    fn read_from_ram(&mut self, ram: &RAM) {
+        self.value = ram.get_at(self.address).unwrap();
+    }
+}
+
+pub struct LYRegister {
+    address: u16,
+    value: u8,
+}
+
+impl LYRegister {
+    pub fn new() -> Self {
+        LYRegister {
+            address: LY_REGISTER_ADDRESS,
+            value: 0x0,
+        }
+    }
+
+    pub fn set_line(&mut self, line: u8) {
+        self.value = line
+    }
+}
+
+impl MemoryRegister for LYRegister {
     fn reset(&mut self) {
         self.value = 0x00;
     }
