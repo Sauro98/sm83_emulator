@@ -1,7 +1,22 @@
 use super::clock::SystemClock;
-use super::ram::{LCDControlRegister, LCDStatusRegister, LYRegister, MemoryRegister, RAM};
+use super::ram::{
+    BGPaletteRegister, LCDControlRegister, LCDStatusRegister, LYRegister, MemoryRegister,
+    ScrollXRegister, ScrollYRegister, RAM,
+};
+use show_image::{create_window, ImageInfo, ImageView, WindowOptions, WindowProxy};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 const VBLANK_PERIOD: std::time::Duration = std::time::Duration::from_millis(16);
+const BG_TILEMAP_SELECT_ADDRESSES: [u16; 2] = [0x9800, 0x9C00];
+const BG_WINDOW_TILEDATA_SELECT_ADDRESSES: [u16; 2] = [0x8800, 0x8000];
+const BG_SHADES: [u8; 4] = [255, 192, 64, 0];
+
+fn add_address(base: u16, offset: u16) -> u16 {
+    let result = base as u32 + offset as u32;
+    let result = result & 0xFFFFF;
+    result as u16
+}
 
 #[derive(Clone)]
 enum LCDMode {
@@ -21,12 +36,12 @@ impl LCDMode {
         }
     }
 
-    pub fn get_mode_duration(&self) -> u16 {
+    pub fn get_mode_duration(&self) -> std::time::Duration {
         match self {
-            LCDMode::HBLANK => 201,
-            LCDMode::VBLANK => 4560,
-            LCDMode::OAM => 77,
-            LCDMode::TX => 169,
+            LCDMode::HBLANK => std::time::Duration::from_nanos(48600),
+            LCDMode::VBLANK => std::time::Duration::from_micros(1080),
+            LCDMode::OAM => std::time::Duration::from_micros(19),
+            LCDMode::TX => std::time::Duration::from_micros(41),
         }
     }
 
@@ -49,7 +64,7 @@ impl LCDMode {
 
 struct LCDStateMachine {
     active_mode: LCDMode,
-    curr_mode_count: u16,
+    curr_mode_start: std::time::Instant,
     last_vblank: std::time::Instant,
 }
 
@@ -57,7 +72,7 @@ impl LCDStateMachine {
     pub fn new() -> Self {
         LCDStateMachine {
             active_mode: LCDMode::OAM,
-            curr_mode_count: 0,
+            curr_mode_start: std::time::Instant::now(),
             last_vblank: std::time::Instant::now(),
         }
     }
@@ -65,7 +80,7 @@ impl LCDStateMachine {
     pub fn next(&mut self) {
         match self.active_mode {
             LCDMode::VBLANK => {
-                if self.curr_mode_count >= self.active_mode.get_mode_duration() {
+                if self.curr_mode_start.elapsed() >= self.active_mode.get_mode_duration() {
                     self.last_vblank = std::time::Instant::now();
                     //println!("End VBLANK");
                 }
@@ -74,21 +89,227 @@ impl LCDStateMachine {
                 if self.last_vblank.elapsed() > VBLANK_PERIOD {
                     self.active_mode = LCDMode::VBLANK;
                     //println!("Start VBLANK");
-                    self.curr_mode_count = 0;
+                    self.curr_mode_start = std::time::Instant::now();
                 }
             }
         }
 
-        if self.curr_mode_count >= self.active_mode.get_mode_duration() {
+        if self.curr_mode_start.elapsed() >= self.active_mode.get_mode_duration() {
             self.active_mode = self.active_mode.get_next_state();
-            self.curr_mode_count = 0;
+            self.curr_mode_start = std::time::Instant::now();
         }
-
-        self.curr_mode_count += 1;
     }
 
     pub fn get_active_mode(&self) -> &LCDMode {
         &self.active_mode
+    }
+}
+
+#[derive(Copy, Clone)]
+struct BGTile {
+    pub pixel_data: [u8; 8 * 8],
+}
+
+impl BGTile {
+    pub fn new() -> Self {
+        BGTile {
+            pixel_data: [0u8; 8 * 8],
+        }
+    }
+
+    pub fn read_from_ram(
+        ram: &RAM,
+        tile_map_address: u16,
+        tile_data_address: u16,
+        index: u16,
+        palette: &BGPaletteRegister,
+    ) -> Self {
+        let palette_colors = palette.palette_colors();
+        // if palette_colors[1] != 0 {
+        //     println!("{:?}", palette_colors);
+        // }
+        let mut tile = BGTile::new();
+        let tile_index = ram.get_at(tile_map_address + index).unwrap();
+        /*if (tile_map_address + index) == 0x9910 {
+            println!(
+                "tile address {:X} tile index {}",
+                tile_map_address + index,
+                tile_index
+            );
+        }*/
+        let tile_data =
+            ram.get_tile_data(tile_data_address, tile_index, tile_data_address == 0x8800);
+        for row in 0..8 {
+            for bit in 0..8 {
+                tile.pixel_data[row * 8 + bit] = ((tile_data[row * 2] >> (7 - bit)) & 0x01)
+                    | (((tile_data[row * 2 + 1] >> (7 - bit)) & 0x01) << 1);
+            }
+            for bit in 0..8 {
+                tile.pixel_data[row * 8 + bit] =
+                    BG_SHADES[palette_colors[tile.pixel_data[row * 8 + bit] as usize]]
+            }
+        }
+
+        // for i in 0..(8 * 8) {
+        //     tile.pixel_data[i] = tile_index;
+        // }
+        tile
+    }
+}
+
+struct LCDImage {
+    x_pos: u8,
+    y_pos: u8,
+    scroll_x: ScrollXRegister,
+    scroll_y: ScrollYRegister,
+    bg_palette: BGPaletteRegister,
+    tile_map: [BGTile; 32 * 32],
+    pixel_data: [u8; 256 * 256],
+    bg_tilemap_address: u16,
+    bg_win_tiledata_address: u16,
+}
+
+impl LCDImage {
+    pub fn new() -> Self {
+        LCDImage {
+            x_pos: 0,
+            y_pos: 0,
+            scroll_x: ScrollXRegister::new(),
+            scroll_y: ScrollYRegister::new(),
+            bg_palette: BGPaletteRegister::new(),
+            tile_map: [BGTile::new(); 32 * 32],
+            pixel_data: [0u8; 256 * 256],
+            bg_tilemap_address: BG_TILEMAP_SELECT_ADDRESSES[0],
+            bg_win_tiledata_address: BG_WINDOW_TILEDATA_SELECT_ADDRESSES[0],
+        }
+    }
+
+    pub fn reset(&mut self) {
+        for pix in self.pixel_data.iter_mut() {
+            *pix = 255;
+        }
+    }
+
+    pub fn get_data(&self) -> [u8; 144 * 160] {
+        let mut data = [255u8; 144 * 160];
+        for i in 0i32..(255 * 255) {
+            let row = i / 256;
+            let col = i % 256;
+            let data_row = row - self.y_pos as i32;
+            let data_col = col - self.x_pos as i32;
+            if data_col >= 0 && data_col < 144 && data_row >= 0 && data_row < 160 {
+                data[data_row as usize * 144 + data_col as usize] =
+                    self.pixel_data[row as usize * 256 + col as usize];
+            }
+        }
+        data
+    }
+
+    pub fn set_pos(&mut self, x_pos: u8, y_pos: u8) {
+        if x_pos < 111 {
+            self.x_pos = x_pos;
+        } else {
+            self.x_pos = 0;
+        }
+
+        if y_pos < 95 {
+            self.y_pos = y_pos;
+        } else {
+            self.y_pos = 0;
+        }
+    }
+
+    pub fn set_bg_vram_address(&mut self, address: u16) {
+        if address != self.bg_tilemap_address && address == 0x9800 {
+            println!("setting tilemap 1")
+        }
+        if address != self.bg_tilemap_address && address == 0x9C00 {
+            println!("setting tilemap 2")
+        }
+        self.bg_tilemap_address = address;
+    }
+
+    pub fn set_bg_win_tiledata_address(&mut self, address: u16) {
+        if address != self.bg_win_tiledata_address && address == 0x8800 {
+            println!("setting negative offset bg tiledata")
+        }
+        if address != self.bg_win_tiledata_address && address == 0x8000 {
+            println!("setting postive offset bg tiledata")
+        }
+        self.bg_win_tiledata_address = address;
+    }
+
+    pub fn read_tilemap(&mut self, ram: &RAM) {
+        for i in 0..self.tile_map.len() {
+            self.tile_map[i] = BGTile::read_from_ram(
+                ram,
+                self.bg_tilemap_address,
+                self.bg_win_tiledata_address,
+                i as u16,
+                &self.bg_palette,
+            );
+        }
+    }
+
+    pub fn draw(&mut self, draw_bg: bool, draw_window: bool, draw_sprites: bool) {
+        /*for i in 0i32..(255 * 255) {
+            let row = i / 256;
+            let col = i % 256;
+            let tile_row = row / 8;
+            let tile_col = col / 8;
+            let tile_index = tile_row * 32 + tile_col;
+            let tile_pixel_row = row % 8;
+            let tile_pixel_col = col % 8;
+            self.pixel_data[i as usize] = self.tile_map[tile_index as usize].pixel_data
+                [(tile_pixel_row * 8 + tile_pixel_col) as usize];
+        }*/
+        if draw_bg {
+            //println!("draw bg");
+            for tile_row in 0..32 {
+                for tile_col in 0..32 {
+                    let curr_tile = &self.tile_map[tile_row * 32 + tile_col];
+                    for tile_pixel_row in 0..8 {
+                        for tile_pixel_col in 0..8 {
+                            self.pixel_data[(((tile_row * 8) + tile_pixel_row) * 256
+                                + ((tile_col * 8) + tile_pixel_col))
+                                as usize] =
+                                curr_tile.pixel_data[tile_pixel_row * 8 + tile_pixel_col]
+                        }
+                    }
+                }
+            }
+        } else {
+            for i in 0..self.pixel_data.len() {
+                self.pixel_data[i] = 255;
+            }
+        }
+        if draw_window {
+            println!("draw window");
+        }
+        if draw_sprites {
+            println!("draw_sprites");
+        }
+    }
+}
+
+impl MemoryRegister for LCDImage {
+    fn reset(&mut self) {
+        self.scroll_x.reset();
+        self.scroll_x.reset();
+        self.bg_palette.reset();
+    }
+
+    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
+        self.scroll_x.load_in_ram(ram);
+        self.scroll_y.load_in_ram(ram);
+        self.bg_palette.load_in_ram(ram)
+    }
+
+    fn read_from_ram(&mut self, ram: &RAM) {
+        self.scroll_x.read_from_ram(ram);
+        self.scroll_y.read_from_ram(ram);
+        self.set_pos(self.scroll_x.value, self.scroll_y.value);
+        self.bg_palette.read_from_ram(ram);
     }
 }
 
@@ -98,64 +319,107 @@ pub struct LCDController {
     ly_register: LYRegister,
     clock: SystemClock,
     state_machine: LCDStateMachine,
+    pixel_data: Arc<Mutex<LCDImage>>,
+    thread_finished: Arc<Mutex<bool>>,
+    image_ready: Arc<Mutex<bool>>,
+    thread_handle: std::thread::JoinHandle<()>,
 }
 
 impl LCDController {
     pub fn new() -> Self {
+        let thread_finished = std::sync::Arc::new(std::sync::Mutex::new(false));
+        let image_ready = std::sync::Arc::new(std::sync::Mutex::new(false));
+        let pixel_data = std::sync::Arc::new(std::sync::Mutex::new(LCDImage::new()));
         LCDController {
             lcd_control_register: LCDControlRegister::new(),
             lcd_status_register: LCDStatusRegister::new(),
             ly_register: LYRegister::new(),
-            clock: SystemClock::from_frequency(1e6),
+            clock: SystemClock::from_frequency(1e6 / 19.0),
             state_machine: LCDStateMachine::new(),
+            pixel_data: pixel_data.clone(),
+            thread_finished: thread_finished.clone(),
+            image_ready: image_ready.clone(),
+            thread_handle: std::thread::spawn(move || {
+                let thread_finished_ref = thread_finished.clone();
+                let image_ready_ref = image_ready.clone();
+                let pixel_data_ref = pixel_data.clone();
+                let display_window = create_window("GameBoy Screen", Default::default()).unwrap();
+                let mut prev_cycle_time = std::time::Instant::now();
+                loop {
+                    if *thread_finished_ref.lock().unwrap() {
+                        break;
+                    }
+                    {
+                        let mut ready = image_ready_ref.lock().unwrap();
+                        if *ready {
+                            let current_data = pixel_data_ref.lock().unwrap().get_data();
+                            let image = ImageView::new(ImageInfo::mono8(144, 160), &current_data);
+                            let fps = 1e9 / prev_cycle_time.elapsed().as_nanos() as f64;
+                            display_window
+                                .set_image(format!("GameBoy Screen {:.2} fps", fps), image)
+                                .unwrap();
+                            //println!("Drawing {:.2}fps", fps);
+                            prev_cycle_time = std::time::Instant::now();
+                            *ready = false;
+                        }
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(2));
+                }
+                println!("outside display loop")
+            }),
         }
     }
 
     pub fn next(&mut self, ram: &mut RAM) {
-        /*let prev_lcd_enable = self.lcd_control_register.get_lcd_display_enable();
-        let prev_window_enable = self.lcd_control_register.get_window_display_enable();
-        let prev_sprite_enable = self.lcd_control_register.get_sprite_display_enable();
-        let prev_bg_enable = self.lcd_control_register.get_bg_display_enable();*/
         self.read_from_ram(ram);
-        /*let curr_lcd_enable = self.lcd_control_register.get_lcd_display_enable();
-        let curr_window_enable = self.lcd_control_register.get_window_display_enable();
-        let curr_sprite_enable = self.lcd_control_register.get_sprite_display_enable();
-        let curr_bg_enable = self.lcd_control_register.get_bg_display_enable();*/
 
-        /*if curr_lcd_enable != prev_lcd_enable {
-            println!(
-                "LCD enable switched from {} to {}",
-                prev_lcd_enable, curr_lcd_enable
-            );
+        if !self.lcd_control_register.get_lcd_display_enable() {
+            self.pixel_data.lock().unwrap().reset();
+            *self.image_ready.lock().unwrap() = true;
+        } else {
+            {
+                let mut pixel_data_ref = self.pixel_data.lock().unwrap();
+                //pixel_data_ref.reset_bg(!self.lcd_control_register.get_bg_display_enable());
+                pixel_data_ref.read_from_ram(ram);
+                /*pixel_data_ref.set_bg_vram_address(
+                    BG_TILEMAP_SELECT_ADDRESSES
+                        [self.lcd_control_register.get_bg_table_address() as usize],
+                );*/
+                pixel_data_ref.set_bg_win_tiledata_address(
+                    BG_WINDOW_TILEDATA_SELECT_ADDRESSES
+                        [self.lcd_control_register.get_bg_window_tiledata_address() as usize],
+                );
+            }
+
+            match self.state_machine.get_active_mode() {
+                LCDMode::TX => {
+                    self.pixel_data.lock().unwrap().read_tilemap(ram);
+                }
+                LCDMode::VBLANK => {
+                    self.pixel_data.lock().unwrap().draw(
+                        self.lcd_control_register.get_bg_display_enable(),
+                        self.lcd_control_register.get_window_display_enable(),
+                        self.lcd_control_register.get_sprite_display_enable(),
+                    );
+                    *self.image_ready.lock().unwrap() = true;
+                }
+                _ => {}
+            }
+            self.state_machine.next();
+            self.lcd_status_register
+                .set_status(self.state_machine.get_active_mode().get_status_byte());
+            self.ly_register
+                .set_line(self.state_machine.get_active_mode().get_vertical_line());
+            self.load_in_ram(ram);
+            self.pixel_data.lock().unwrap().load_in_ram(ram);
         }
-
-        if curr_window_enable != prev_window_enable {
-            println!(
-                "Window enable switched from {} to {}",
-                prev_window_enable, curr_window_enable
-            );
-        }
-
-        if curr_sprite_enable != prev_sprite_enable {
-            println!(
-                "Sprite enable switched from {} to {}",
-                prev_sprite_enable, curr_sprite_enable
-            );
-        }
-
-        if curr_bg_enable != prev_bg_enable {
-            println!(
-                "BG enable switched from {} to {}",
-                prev_bg_enable, curr_bg_enable
-            );
-        }*/
-        self.state_machine.next();
-        self.lcd_status_register
-            .set_status(self.state_machine.get_active_mode().get_status_byte());
-        self.ly_register
-            .set_line(self.state_machine.get_active_mode().get_vertical_line());
-        self.load_in_ram(ram);
         self.clock.next();
+    }
+
+    pub fn stop_window_thread(&self) {
+        let mut reference = self.thread_finished.lock().unwrap();
+        *reference = true;
+        std::thread::sleep(std::time::Duration::from_millis(32));
     }
 }
 

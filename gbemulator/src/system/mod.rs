@@ -1,6 +1,9 @@
 use ram::MemoryRegister;
 use sm83::snapshot::SM83Snapshot;
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex,
+};
 
 pub mod clock;
 pub mod lcd_controller;
@@ -74,6 +77,8 @@ impl System {
         let cpu_ref = self.cpu.clone();
         let lcd_ram_ref = self.ram.clone();
         let lcd_ref = self.lcd_controller.clone();
+        let loop_finished_ref = Arc::new(AtomicBool::new(false));
+        let lcd_loop_finished_ref = loop_finished_ref.clone();
         let cpu_thread_handle = std::thread::spawn(move || {
             let start = std::time::Instant::now();
             for _ in 0..n_iter {
@@ -89,6 +94,7 @@ impl System {
                     println!("boot rom ended");
                 }
             }
+            loop_finished_ref.store(true, Ordering::Relaxed);
             let cpu = cpu_ref.lock().unwrap();
             println!(
                 "CPU pc: {:X}",
@@ -106,10 +112,13 @@ impl System {
         });
         let lcd_thread_handle = std::thread::spawn(move || {
             let start = std::time::Instant::now();
-            for _ in 0..n_iter {
+            loop {
                 let mut ram = lcd_ram_ref.lock().unwrap();
                 let mut lcd = lcd_ref.lock().unwrap();
                 lcd.next(&mut ram);
+                if lcd_loop_finished_ref.load(Ordering::Relaxed) {
+                    break;
+                }
             }
             let dur = std::time::Instant::now().duration_since(start);
             let elapsed_nanos = dur.as_nanos() as f64;
@@ -119,6 +128,7 @@ impl System {
                 "LCD Execution frequency {}",
                 format_frequency(cycles_per_second as f32)
             );
+            lcd_ref.lock().unwrap().stop_window_thread();
         });
         println!("Wating for join");
         cpu_thread_handle.join().unwrap();
@@ -147,6 +157,8 @@ impl System {
         self.bootlock_register.lock();
         self.boot_rom.load_in_ram(&mut ram);
         self.bootlock_register.load_in_ram(&mut ram);
+        let fakerom = ram::FakeRom::new();
+        fakerom.load_in_ram(&mut ram);
         cpu.reset(&ram);
     }
 }

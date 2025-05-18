@@ -7,7 +7,10 @@ const BOOTLOCKER_UNLOCKED: u8 = 0x00;
 const DMA_ADDRESS: u16 = 0xFF46;
 const LCD_CONTROL_REGISTER_ADDRESS: u16 = 0xFF40;
 const LCD_STATUS_REGISTER_ADDRESS: u16 = 0xFF41;
+const LCD_SCROLL_Y_ADDRESS: u16 = 0xFF42;
+const LCD_SCROLL_X_ADDRESS: u16 = 0xFF43;
 const LY_REGISTER_ADDRESS: u16 = 0xFF44;
+const BG_PALETTE_ADDRESS: u16 = 0xFF47;
 
 pub struct RAM {
     data: Mutex<std::vec::Vec<u8>>,
@@ -65,6 +68,26 @@ impl RAM {
 
     pub fn reset_dma_request(&mut self) {
         self.dma_requested = false;
+    }
+
+    pub fn get_tile_data(
+        &self,
+        start_address: u16,
+        offset: u8,
+        is_offset_negative: bool,
+    ) -> [u8; 16] {
+        let mut result = [0; 16];
+        let mut adjusted_offset = (start_address + (offset as u16) * 16) as usize;
+        if is_offset_negative {
+            let negative_offset = ((offset as i8) as i32 + 128) * 16;
+            adjusted_offset = ((start_address as i32 + negative_offset) as u16) as usize;
+        }
+
+        let data = self.data.lock().unwrap();
+        for i in 0..16 {
+            result[i] = *data.get(adjusted_offset + i).unwrap();
+        }
+        result
     }
 }
 
@@ -179,16 +202,24 @@ impl LCDControlRegister {
         self.value & 0x80 > 0
     }
 
-    pub fn get_window_display_enable(&mut self) -> bool {
+    pub fn get_window_display_enable(&self) -> bool {
         self.value & 0x20 > 0
     }
 
-    pub fn get_sprite_display_enable(&mut self) -> bool {
+    pub fn get_sprite_display_enable(&self) -> bool {
         self.value & 0x02 > 0
     }
 
-    pub fn get_bg_display_enable(&mut self) -> bool {
+    pub fn get_bg_display_enable(&self) -> bool {
         self.value & 0x01 > 0
+    }
+
+    pub fn get_bg_table_address(&self) -> u8 {
+        self.value & 0x08 >> 3
+    }
+
+    pub fn get_bg_window_tiledata_address(&self) -> u8 {
+        self.value & 0x10 >> 4
     }
 }
 
@@ -268,4 +299,147 @@ impl MemoryRegister for LYRegister {
     fn read_from_ram(&mut self, ram: &RAM) {
         self.value = ram.get_at(self.address).unwrap();
     }
+}
+
+pub struct ScrollXRegister {
+    address: u16,
+    pub value: u8,
+}
+pub struct ScrollYRegister {
+    address: u16,
+    pub value: u8,
+}
+
+impl ScrollXRegister {
+    pub fn new() -> Self {
+        ScrollXRegister {
+            address: LCD_SCROLL_X_ADDRESS,
+            value: 0x0,
+        }
+    }
+}
+
+impl ScrollYRegister {
+    pub fn new() -> Self {
+        ScrollYRegister {
+            address: LCD_SCROLL_Y_ADDRESS,
+            value: 0x0,
+        }
+    }
+}
+
+impl MemoryRegister for ScrollXRegister {
+    fn reset(&mut self) {
+        self.value = 0x0;
+    }
+
+    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
+        ram.set_at(self.address, self.value)
+    }
+
+    fn read_from_ram(&mut self, ram: &RAM) {
+        self.value = ram.get_at(self.address).unwrap();
+    }
+}
+
+impl MemoryRegister for ScrollYRegister {
+    fn reset(&mut self) {
+        self.value = 0x0;
+    }
+
+    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
+        ram.set_at(self.address, self.value)
+    }
+
+    fn read_from_ram(&mut self, ram: &RAM) {
+        self.value = ram.get_at(self.address).unwrap();
+    }
+}
+
+pub struct BGPaletteRegister {
+    value: u8,
+    address: u16,
+}
+
+impl BGPaletteRegister {
+    pub fn new() -> Self {
+        BGPaletteRegister {
+            value: 0x0,
+            address: BG_PALETTE_ADDRESS,
+        }
+    }
+
+    pub fn palette_color_0(&self) -> usize {
+        (self.value & 0x03) as usize
+    }
+
+    pub fn palette_color_1(&self) -> usize {
+        ((self.value >> 2) & 0x03) as usize
+    }
+
+    pub fn palette_color_2(&self) -> usize {
+        ((self.value >> 4) & 0x03) as usize
+    }
+
+    pub fn palette_color_3(&self) -> usize {
+        ((self.value >> 6) & 0x03) as usize
+    }
+
+    pub fn palette_colors(&self) -> [usize; 4] {
+        /*if self.value != 0 {
+            println!("{}", self.value);
+        }*/
+        [
+            self.palette_color_0(),
+            self.palette_color_1(),
+            self.palette_color_2(),
+            self.palette_color_3(),
+        ]
+    }
+}
+
+impl MemoryRegister for BGPaletteRegister {
+    fn reset(&mut self) {
+        self.value = 0x0;
+    }
+
+    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
+        ram.set_at(self.address, self.value)
+    }
+
+    fn read_from_ram(&mut self, ram: &RAM) {
+        self.value = ram.get_at(self.address).unwrap();
+    }
+}
+
+pub struct FakeRom {
+    address: u16,
+    contents: Vec<u8>,
+}
+
+impl FakeRom {
+    pub fn new() -> Self {
+        FakeRom {
+            address: 0x0104,
+            contents: vec![
+                0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C,
+                0x00, 0x0D, 0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 0xDC, 0xCC, 0x6E, 0xE6,
+                0xDD, 0xDD, 0xD9, 0x99, 0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC,
+                0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E,
+            ],
+        }
+    }
+}
+
+impl MemoryRegister for FakeRom {
+    fn reset(&mut self) {}
+
+    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
+        for i in 0..self.contents.len() {
+            ram.set_at(self.address + i as u16, self.contents[i]);
+        }
+        Some(())
+    }
+
+    fn read_from_ram(&mut self, ram: &RAM) {}
 }
