@@ -1,6 +1,5 @@
 use std::time::Duration;
-const MAX_UNDERTIME: Duration = Duration::from_millis(5);
-const WIN_MIN_SLEEP_TIME: Duration = Duration::from_millis(5);
+const WIN_MIN_SLEEP_TIME: Duration = Duration::from_millis(1);
 
 fn period_to_duration(period: f32) -> Duration {
     let duration_nanos = (period * 1e9).ceil() as u64;
@@ -36,13 +35,16 @@ impl SystemClock {
             .undertime_duration
             .checked_sub(self.overtime_duration)
             .unwrap_or(Duration::ZERO);
-        if sleep_duration > MAX_UNDERTIME {
+        if sleep_duration > WIN_MIN_SLEEP_TIME {
             std::thread::sleep(WIN_MIN_SLEEP_TIME);
-            self.undertime_duration = Duration::ZERO;
-            self.overtime_duration = Duration::ZERO;
-            self.sleep_count += 1;
         }
         let sleep_duration = std::time::Instant::now().duration_since(sleep_start);
+        self.undertime_duration = self
+            .undertime_duration
+            .checked_sub(sleep_duration)
+            .unwrap_or(Duration::ZERO);
+        self.overtime_duration = Duration::ZERO;
+        self.sleep_count += 1;
         sleep_duration
     }
 

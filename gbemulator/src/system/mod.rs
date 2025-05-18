@@ -113,9 +113,8 @@ impl System {
         let lcd_thread_handle = std::thread::spawn(move || {
             let start = std::time::Instant::now();
             loop {
-                let mut ram = lcd_ram_ref.lock().unwrap();
                 let mut lcd = lcd_ref.lock().unwrap();
-                lcd.next(&mut ram);
+                lcd.next(&lcd_ram_ref);
                 if lcd_loop_finished_ref.load(Ordering::Relaxed) {
                     break;
                 }

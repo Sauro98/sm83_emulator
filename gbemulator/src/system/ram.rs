@@ -13,7 +13,7 @@ const LY_REGISTER_ADDRESS: u16 = 0xFF44;
 const BG_PALETTE_ADDRESS: u16 = 0xFF47;
 
 pub struct RAM {
-    data: Mutex<std::vec::Vec<u8>>,
+    data: std::vec::Vec<u8>,
     #[allow(dead_code)]
     capacity: usize,
     dma_requested: bool,
@@ -22,7 +22,7 @@ pub struct RAM {
 impl Clone for RAM {
     fn clone(&self) -> Self {
         Self {
-            data: Mutex::new(self.data.lock().unwrap().clone()),
+            data: self.data.clone(),
             capacity: self.capacity.clone(),
             dma_requested: self.dma_requested.clone(),
         }
@@ -32,7 +32,7 @@ impl Clone for RAM {
 impl RAM {
     pub fn new() -> RAM {
         let capacity = u16::MAX as usize + 1;
-        let data = Mutex::new(vec![0; capacity]);
+        let data = vec![0; capacity];
         RAM {
             data: data,
             capacity: capacity,
@@ -41,12 +41,11 @@ impl RAM {
     }
 
     pub fn get_at(&self, address: u16) -> Option<u8> {
-        self.data.lock().unwrap().get(address as usize).copied()
+        self.data.get(address as usize).copied()
     }
 
     pub fn set_at(&mut self, address: u16, value: u8) -> Option<()> {
-        let mut data = self.data.lock().unwrap();
-        if (*data).get(BOOTLOCKER_ADDRESS as usize) == Some(&BOOTLOCKER_LOCKED) {
+        if self.data.get(BOOTLOCKER_ADDRESS as usize) == Some(&BOOTLOCKER_LOCKED) {
             // if bootlock is set
             if address <= BOOT_ROM_END {
                 return None; // cannot set boot memory if lock is on
@@ -55,7 +54,7 @@ impl RAM {
         if address == DMA_ADDRESS {
             self.dma_requested = true;
         }
-        match (*data).get_mut(address as usize) {
+        match self.data.get_mut(address as usize) {
             Some(x) => *x = value,
             None => return None,
         }
@@ -83,9 +82,8 @@ impl RAM {
             adjusted_offset = ((start_address as i32 + negative_offset) as u16) as usize;
         }
 
-        let data = self.data.lock().unwrap();
         for i in 0..16 {
-            result[i] = *data.get(adjusted_offset + i).unwrap();
+            result[i] = *self.data.get(adjusted_offset + i).unwrap();
         }
         result
     }

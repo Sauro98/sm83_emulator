@@ -323,6 +323,7 @@ pub struct LCDController {
     thread_finished: Arc<Mutex<bool>>,
     image_ready: Arc<Mutex<bool>>,
     thread_handle: std::thread::JoinHandle<()>,
+    should_draw: bool,
 }
 
 impl LCDController {
@@ -358,7 +359,7 @@ impl LCDController {
                             display_window
                                 .set_image(format!("GameBoy Screen {:.2} fps", fps), image)
                                 .unwrap();
-                            //println!("Drawing {:.2}fps", fps);
+                            println!("Drawing {:.2}fps", fps);
                             prev_cycle_time = std::time::Instant::now();
                             *ready = false;
                         }
@@ -367,11 +368,13 @@ impl LCDController {
                 }
                 println!("outside display loop")
             }),
+            should_draw: false,
         }
     }
 
-    pub fn next(&mut self, ram: &mut RAM) {
-        self.read_from_ram(ram);
+    pub fn next(&mut self, ram: &Arc<Mutex<RAM>>) {
+        self.read_from_ram(&ram.lock().unwrap());
+        let mut ram = ram.lock().unwrap();
 
         if !self.lcd_control_register.get_lcd_display_enable() {
             self.pixel_data.lock().unwrap().reset();
@@ -380,7 +383,7 @@ impl LCDController {
             {
                 let mut pixel_data_ref = self.pixel_data.lock().unwrap();
                 //pixel_data_ref.reset_bg(!self.lcd_control_register.get_bg_display_enable());
-                pixel_data_ref.read_from_ram(ram);
+                pixel_data_ref.read_from_ram(&ram);
                 /*pixel_data_ref.set_bg_vram_address(
                     BG_TILEMAP_SELECT_ADDRESSES
                         [self.lcd_control_register.get_bg_table_address() as usize],
@@ -393,15 +396,21 @@ impl LCDController {
 
             match self.state_machine.get_active_mode() {
                 LCDMode::TX => {
-                    self.pixel_data.lock().unwrap().read_tilemap(ram);
+                    self.pixel_data.lock().unwrap().read_tilemap(&ram);
                 }
                 LCDMode::VBLANK => {
-                    self.pixel_data.lock().unwrap().draw(
-                        self.lcd_control_register.get_bg_display_enable(),
-                        self.lcd_control_register.get_window_display_enable(),
-                        self.lcd_control_register.get_sprite_display_enable(),
-                    );
-                    *self.image_ready.lock().unwrap() = true;
+                    if self.should_draw {
+                        self.pixel_data.lock().unwrap().draw(
+                            self.lcd_control_register.get_bg_display_enable(),
+                            self.lcd_control_register.get_window_display_enable(),
+                            self.lcd_control_register.get_sprite_display_enable(),
+                        );
+                        *self.image_ready.lock().unwrap() = true;
+                        self.should_draw = false;
+                    }
+                }
+                LCDMode::OAM => {
+                    self.should_draw = true;
                 }
                 _ => {}
             }
@@ -410,8 +419,8 @@ impl LCDController {
                 .set_status(self.state_machine.get_active_mode().get_status_byte());
             self.ly_register
                 .set_line(self.state_machine.get_active_mode().get_vertical_line());
-            self.load_in_ram(ram);
-            self.pixel_data.lock().unwrap().load_in_ram(ram);
+            self.load_in_ram(&mut ram);
+            self.pixel_data.lock().unwrap().load_in_ram(&mut ram);
         }
         self.clock.next();
     }
