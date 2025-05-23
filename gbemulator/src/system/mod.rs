@@ -1,14 +1,14 @@
+pub mod clock;
+pub mod lcd_controller;
+pub mod ram;
+pub mod sm83;
+
 use ram::MemoryRegister;
 use sm83::snapshot::SM83Snapshot;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
 };
-
-pub mod clock;
-pub mod lcd_controller;
-pub mod ram;
-pub mod sm83;
 
 fn format_frequency(frequency: f32) -> String {
     if frequency < 1e3 {

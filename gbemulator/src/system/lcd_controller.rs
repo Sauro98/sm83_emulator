@@ -3,20 +3,16 @@ use super::ram::{
     BGPaletteRegister, LCDControlRegister, LCDStatusRegister, LYRegister, MemoryRegister,
     ScrollXRegister, ScrollYRegister, RAM,
 };
-use show_image::{create_window, ImageInfo, ImageView, WindowOptions, WindowProxy};
+
+use super::ram::default_nonimplemented_memory_register_trait_impl;
+
+use show_image::{create_window, ImageInfo, ImageView};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 const VBLANK_PERIOD: std::time::Duration = std::time::Duration::from_millis(16);
 const BG_TILEMAP_SELECT_ADDRESSES: [u16; 2] = [0x9800, 0x9C00];
 const BG_WINDOW_TILEDATA_SELECT_ADDRESSES: [u16; 2] = [0x8800, 0x8000];
 const BG_SHADES: [u8; 4] = [255, 192, 64, 0];
-
-fn add_address(base: u16, offset: u16) -> u16 {
-    let result = base as u32 + offset as u32;
-    let result = result & 0xFFFFF;
-    result as u16
-}
 
 #[derive(Clone)]
 enum LCDMode {
@@ -311,6 +307,8 @@ impl MemoryRegister for LCDImage {
         self.set_pos(self.scroll_x.value, self.scroll_y.value);
         self.bg_palette.read_from_ram(ram);
     }
+
+    default_nonimplemented_memory_register_trait_impl!();
 }
 
 pub struct LCDController {
@@ -373,54 +371,55 @@ impl LCDController {
     }
 
     pub fn next(&mut self, ram: &Arc<Mutex<RAM>>) {
-        self.read_from_ram(&ram.lock().unwrap());
-        let mut ram = ram.lock().unwrap();
+        {
+            let mut ram = ram.lock().unwrap();
+            self.read_from_ram(&ram);
 
-        if !self.lcd_control_register.get_lcd_display_enable() {
-            self.pixel_data.lock().unwrap().reset();
-            *self.image_ready.lock().unwrap() = true;
-        } else {
-            {
-                let mut pixel_data_ref = self.pixel_data.lock().unwrap();
-                //pixel_data_ref.reset_bg(!self.lcd_control_register.get_bg_display_enable());
-                pixel_data_ref.read_from_ram(&ram);
-                /*pixel_data_ref.set_bg_vram_address(
-                    BG_TILEMAP_SELECT_ADDRESSES
-                        [self.lcd_control_register.get_bg_table_address() as usize],
-                );*/
-                pixel_data_ref.set_bg_win_tiledata_address(
-                    BG_WINDOW_TILEDATA_SELECT_ADDRESSES
-                        [self.lcd_control_register.get_bg_window_tiledata_address() as usize],
-                );
-            }
-
-            match self.state_machine.get_active_mode() {
-                LCDMode::TX => {
-                    self.pixel_data.lock().unwrap().read_tilemap(&ram);
+            if !self.lcd_control_register.get_lcd_display_enable() {
+                self.pixel_data.lock().unwrap().reset();
+                *self.image_ready.lock().unwrap() = true;
+            } else {
+                {
+                    let mut pixel_data_ref = self.pixel_data.lock().unwrap();
+                    pixel_data_ref.read_from_ram(&ram);
+                    pixel_data_ref.set_bg_vram_address(
+                        BG_TILEMAP_SELECT_ADDRESSES
+                            [self.lcd_control_register.get_bg_table_address() as usize],
+                    );
+                    pixel_data_ref.set_bg_win_tiledata_address(
+                        BG_WINDOW_TILEDATA_SELECT_ADDRESSES
+                            [self.lcd_control_register.get_bg_window_tiledata_address() as usize],
+                    );
                 }
-                LCDMode::VBLANK => {
-                    if self.should_draw {
-                        self.pixel_data.lock().unwrap().draw(
-                            self.lcd_control_register.get_bg_display_enable(),
-                            self.lcd_control_register.get_window_display_enable(),
-                            self.lcd_control_register.get_sprite_display_enable(),
-                        );
-                        *self.image_ready.lock().unwrap() = true;
-                        self.should_draw = false;
+
+                match self.state_machine.get_active_mode() {
+                    LCDMode::TX => {
+                        self.pixel_data.lock().unwrap().read_tilemap(&ram);
                     }
+                    LCDMode::VBLANK => {
+                        if self.should_draw {
+                            self.pixel_data.lock().unwrap().draw(
+                                self.lcd_control_register.get_bg_display_enable(),
+                                self.lcd_control_register.get_window_display_enable(),
+                                self.lcd_control_register.get_sprite_display_enable(),
+                            );
+                            *self.image_ready.lock().unwrap() = true;
+                            self.should_draw = false;
+                        }
+                    }
+                    LCDMode::OAM => {
+                        self.should_draw = true;
+                    }
+                    _ => {}
                 }
-                LCDMode::OAM => {
-                    self.should_draw = true;
-                }
-                _ => {}
+                self.state_machine.next();
+                self.lcd_status_register
+                    .set_status(self.state_machine.get_active_mode().get_status_byte());
+                self.ly_register
+                    .set_line(self.state_machine.get_active_mode().get_vertical_line());
+                self.load_in_ram(&mut ram);
+                self.pixel_data.lock().unwrap().load_in_ram(&mut ram);
             }
-            self.state_machine.next();
-            self.lcd_status_register
-                .set_status(self.state_machine.get_active_mode().get_status_byte());
-            self.ly_register
-                .set_line(self.state_machine.get_active_mode().get_vertical_line());
-            self.load_in_ram(&mut ram);
-            self.pixel_data.lock().unwrap().load_in_ram(&mut ram);
         }
         self.clock.next();
     }
@@ -455,4 +454,6 @@ impl MemoryRegister for LCDController {
         self.lcd_status_register.read_from_ram(ram);
         self.ly_register.read_from_ram(ram);
     }
+
+    default_nonimplemented_memory_register_trait_impl!();
 }

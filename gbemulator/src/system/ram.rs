@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 const BOOT_ROM_END: u16 = 0x00FF;
 const BOOTLOCKER_ADDRESS: u16 = 0xFF50;
 const BOOTLOCKER_LOCKED: u8 = 0x01;
@@ -11,6 +9,45 @@ const LCD_SCROLL_Y_ADDRESS: u16 = 0xFF42;
 const LCD_SCROLL_X_ADDRESS: u16 = 0xFF43;
 const LY_REGISTER_ADDRESS: u16 = 0xFF44;
 const BG_PALETTE_ADDRESS: u16 = 0xFF47;
+
+macro_rules! default_memory_register_trait_impl {
+    ($name:ident,$reset_value:expr) => {
+        impl MemoryRegister for $name {
+            fn get_address(&self) -> u16 {
+                self.address
+            }
+
+            fn get_value(&self) -> u8 {
+                self.value
+            }
+
+            fn set_value(&mut self, value: u8) {
+                self.value = value;
+            }
+
+            fn reset(&mut self) {
+                self.value = $reset_value;
+            }
+        }
+    };
+}
+
+macro_rules! default_nonimplemented_memory_register_trait_impl {
+    () => {
+        fn get_address(&self) -> u16 {
+            unimplemented!()
+        }
+
+        fn get_value(&self) -> u8 {
+            unimplemented!()
+        }
+
+        fn set_value(&mut self, _: u8) {
+            unimplemented!()
+        }
+    };
+}
+pub(crate) use default_nonimplemented_memory_register_trait_impl;
 
 pub struct RAM {
     data: std::vec::Vec<u8>,
@@ -90,9 +127,18 @@ impl RAM {
 }
 
 pub trait MemoryRegister {
-    fn reset(&mut self);
-    fn load_in_ram(&self, ram: &mut RAM) -> Option<()>;
-    fn read_from_ram(&mut self, ram: &RAM);
+    fn get_address(&self) -> u16;
+    fn get_value(&self) -> u8;
+    fn set_value(&mut self, value: u8);
+    fn reset(&mut self) {
+        self.set_value(0x00);
+    }
+    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
+        ram.set_at(self.get_address(), self.get_value())
+    }
+    fn read_from_ram(&mut self, ram: &RAM) {
+        self.set_value(ram.get_at(self.get_address()).unwrap());
+    }
 }
 
 pub struct BootLockMemoryRegister {
@@ -121,19 +167,7 @@ impl BootLockMemoryRegister {
     }
 }
 
-impl MemoryRegister for BootLockMemoryRegister {
-    fn reset(&mut self) {
-        self.value = BOOTLOCKER_UNLOCKED;
-    }
-
-    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
-        ram.set_at(self.address, self.value)
-    }
-
-    fn read_from_ram(&mut self, ram: &RAM) {
-        self.value = ram.get_at(self.address).unwrap();
-    }
-}
+default_memory_register_trait_impl!(BootLockMemoryRegister, BOOTLOCKER_UNLOCKED);
 
 impl BootRom {
     pub fn new() -> Self {
@@ -168,6 +202,8 @@ impl MemoryRegister for BootRom {
         self.contents = vec![0x00; 255];
     }
 
+    default_nonimplemented_memory_register_trait_impl!();
+
     fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
         for (address, value) in self.contents.iter().enumerate() {
             let res = ram.set_at(address as u16, value.to_owned());
@@ -178,7 +214,7 @@ impl MemoryRegister for BootRom {
         Some(())
     }
 
-    fn read_from_ram(&mut self, ram: &RAM) {
+    fn read_from_ram(&mut self, _: &RAM) {
         unimplemented!()
     }
 }
@@ -213,27 +249,15 @@ impl LCDControlRegister {
     }
 
     pub fn get_bg_table_address(&self) -> u8 {
-        self.value & 0x08 >> 3
+        (self.value & 0x08) >> 3
     }
 
     pub fn get_bg_window_tiledata_address(&self) -> u8 {
-        self.value & 0x10 >> 4
+        (self.value & 0x10) >> 4
     }
 }
 
-impl MemoryRegister for LCDControlRegister {
-    fn reset(&mut self) {
-        self.value = 0x00;
-    }
-
-    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
-        ram.set_at(self.address, self.value)
-    }
-
-    fn read_from_ram(&mut self, ram: &RAM) {
-        self.value = ram.get_at(self.address).unwrap();
-    }
-}
+default_memory_register_trait_impl!(LCDControlRegister, 0x00);
 
 pub struct LCDStatusRegister {
     address: u16,
@@ -253,19 +277,7 @@ impl LCDStatusRegister {
     }
 }
 
-impl MemoryRegister for LCDStatusRegister {
-    fn reset(&mut self) {
-        self.value = 0x00;
-    }
-
-    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
-        ram.set_at(self.address, self.value)
-    }
-
-    fn read_from_ram(&mut self, ram: &RAM) {
-        self.value = ram.get_at(self.address).unwrap();
-    }
-}
+default_memory_register_trait_impl!(LCDStatusRegister, 0x00);
 
 pub struct LYRegister {
     address: u16,
@@ -285,19 +297,7 @@ impl LYRegister {
     }
 }
 
-impl MemoryRegister for LYRegister {
-    fn reset(&mut self) {
-        self.value = 0x00;
-    }
-
-    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
-        ram.set_at(self.address, self.value)
-    }
-
-    fn read_from_ram(&mut self, ram: &RAM) {
-        self.value = ram.get_at(self.address).unwrap();
-    }
-}
+default_memory_register_trait_impl!(LYRegister, 0x00);
 
 pub struct ScrollXRegister {
     address: u16,
@@ -326,33 +326,8 @@ impl ScrollYRegister {
     }
 }
 
-impl MemoryRegister for ScrollXRegister {
-    fn reset(&mut self) {
-        self.value = 0x0;
-    }
-
-    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
-        ram.set_at(self.address, self.value)
-    }
-
-    fn read_from_ram(&mut self, ram: &RAM) {
-        self.value = ram.get_at(self.address).unwrap();
-    }
-}
-
-impl MemoryRegister for ScrollYRegister {
-    fn reset(&mut self) {
-        self.value = 0x0;
-    }
-
-    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
-        ram.set_at(self.address, self.value)
-    }
-
-    fn read_from_ram(&mut self, ram: &RAM) {
-        self.value = ram.get_at(self.address).unwrap();
-    }
-}
+default_memory_register_trait_impl!(ScrollXRegister, 0x00);
+default_memory_register_trait_impl!(ScrollYRegister, 0x00);
 
 pub struct BGPaletteRegister {
     value: u8,
@@ -384,9 +359,6 @@ impl BGPaletteRegister {
     }
 
     pub fn palette_colors(&self) -> [usize; 4] {
-        /*if self.value != 0 {
-            println!("{}", self.value);
-        }*/
         [
             self.palette_color_0(),
             self.palette_color_1(),
@@ -396,19 +368,7 @@ impl BGPaletteRegister {
     }
 }
 
-impl MemoryRegister for BGPaletteRegister {
-    fn reset(&mut self) {
-        self.value = 0x0;
-    }
-
-    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
-        ram.set_at(self.address, self.value)
-    }
-
-    fn read_from_ram(&mut self, ram: &RAM) {
-        self.value = ram.get_at(self.address).unwrap();
-    }
-}
+default_memory_register_trait_impl!(BGPaletteRegister, 0x00);
 
 pub struct FakeRom {
     address: u16,
@@ -430,7 +390,9 @@ impl FakeRom {
 }
 
 impl MemoryRegister for FakeRom {
-    fn reset(&mut self) {}
+    fn reset(&mut self) {
+        unimplemented!()
+    }
 
     fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
         for i in 0..self.contents.len() {
@@ -439,5 +401,23 @@ impl MemoryRegister for FakeRom {
         Some(())
     }
 
-    fn read_from_ram(&mut self, ram: &RAM) {}
+    default_nonimplemented_memory_register_trait_impl!();
+
+    fn read_from_ram(&mut self, _: &RAM) {
+        unimplemented!()
+    }
+}
+
+mod test {
+    #[test]
+    fn test_lcd_control_register() {
+        let lcd_control_register = super::LCDControlRegister {
+            address: super::LCD_CONTROL_REGISTER_ADDRESS,
+            value: 0x91,
+        };
+        assert_eq!(lcd_control_register.get_lcd_display_enable(), true);
+        assert_eq!(lcd_control_register.get_bg_window_tiledata_address(), 0x01);
+        assert_eq!(lcd_control_register.get_bg_table_address(), 0x00);
+        assert_eq!(lcd_control_register.get_bg_display_enable(), true);
+    }
 }
