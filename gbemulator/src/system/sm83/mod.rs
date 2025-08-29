@@ -241,12 +241,6 @@ impl SM83 {
     pub fn next(&mut self, ram: &mut RAM) {
         let ir = self.register_file.get_ir();
         let op_code = OpCode::from_ir(ir);
-        /*println!(
-            "pc: 0x{:X} ir: 0x{:X}, op: {:?}",
-            self.register_file.get_pc(),
-            ir,
-            op_code
-        );*/
 
         match op_code {
             None => {

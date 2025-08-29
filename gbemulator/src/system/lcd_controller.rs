@@ -1,8 +1,9 @@
 use super::clock::SystemClock;
-use super::ram::{
-    BGPaletteRegister, LCDControlRegister, LCDStatusRegister, LYRegister, MemoryRegister,
-    ScrollXRegister, ScrollYRegister, RAM,
+use super::ram::lcd_registers::{
+    BGPaletteRegister, LCDControlRegister, LCDStatusRegister, LYRegister, ScrollXRegister,
+    ScrollYRegister,
 };
+use super::ram::{MemoryRegister, RAM};
 
 use super::ram::default_nonimplemented_memory_register_trait_impl;
 
@@ -357,7 +358,7 @@ impl LCDController {
                             display_window
                                 .set_image(format!("GameBoy Screen {:.2} fps", fps), image)
                                 .unwrap();
-                            println!("Drawing {:.2}fps", fps);
+                            //println!("Drawing {:.2}fps", fps);
                             prev_cycle_time = std::time::Instant::now();
                             *ready = false;
                         }

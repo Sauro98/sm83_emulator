@@ -2,6 +2,7 @@ pub mod clock;
 pub mod lcd_controller;
 pub mod ram;
 pub mod sm83;
+pub mod sound_controller;
 
 use ram::MemoryRegister;
 use sm83::snapshot::SM83Snapshot;
@@ -28,8 +29,9 @@ pub struct System {
     cpu: Arc<Mutex<sm83::SM83>>,
     ram: Arc<Mutex<ram::RAM>>,
     boot_rom: ram::BootRom,
-    bootlock_register: ram::BootLockMemoryRegister,
+    bootlock_register: Arc<Mutex<ram::BootLockMemoryRegister>>,
     lcd_controller: Arc<Mutex<lcd_controller::LCDController>>,
+    sound_controller: Arc<Mutex<sound_controller::SoundController>>,
 }
 
 impl System {
@@ -38,8 +40,9 @@ impl System {
             cpu: Arc::new(Mutex::new(sm83::SM83::new(clock_frequency))),
             ram: Arc::new(Mutex::new(ram::RAM::new())),
             boot_rom: ram::BootRom::new(),
-            bootlock_register: ram::BootLockMemoryRegister::new(),
+            bootlock_register: Arc::new(Mutex::new(ram::BootLockMemoryRegister::new())),
             lcd_controller: Arc::new(Mutex::new(lcd_controller::LCDController::new())),
+            sound_controller: Arc::new(Mutex::new(sound_controller::SoundController::new())),
         };
     }
 
@@ -55,8 +58,9 @@ impl System {
             cpu: Arc::new(Mutex::new(cpu)),
             ram: Arc::new(Mutex::new(ram)),
             boot_rom: ram::BootRom::new(),
-            bootlock_register: ram::BootLockMemoryRegister::new(),
+            bootlock_register: Arc::new(Mutex::new(ram::BootLockMemoryRegister::new())),
             lcd_controller: Arc::new(Mutex::new(lcd_controller::LCDController::new())),
+            sound_controller: Arc::new(Mutex::new(sound_controller::SoundController::new())),
         };
     }
 
@@ -74,11 +78,15 @@ impl System {
     pub fn run(mut self, n_iter: usize) -> Self {
         self.boot();
         let cpu_ram_ref = self.ram.clone();
+        let bootlocker_ref = self.bootlock_register.clone();
         let cpu_ref = self.cpu.clone();
         let lcd_ram_ref = self.ram.clone();
         let lcd_ref = self.lcd_controller.clone();
+        let sound_ram_ref = self.ram.clone();
+        let sound_ref = self.sound_controller.clone();
         let loop_finished_ref = Arc::new(AtomicBool::new(false));
         let lcd_loop_finished_ref = loop_finished_ref.clone();
+        let sound_loop_finished_ref = loop_finished_ref.clone();
         let cpu_thread_handle = std::thread::spawn(move || {
             let start = std::time::Instant::now();
             for _ in 0..n_iter {
@@ -92,6 +100,13 @@ impl System {
                 }
                 if cpu.get_register(sm83::registers::RegisterName::PC) >= 0xFF {
                     println!("boot rom ended");
+                    break;
+                }
+
+                let mut blr = bootlocker_ref.lock().unwrap();
+                blr.read_from_ram(&ram);
+                if blr.is_unlocked() {
+                    println!("bootlock unlocked");
                 }
             }
             loop_finished_ref.store(true, Ordering::Relaxed);
@@ -102,7 +117,7 @@ impl System {
             );
             let dur = std::time::Instant::now().duration_since(start);
             let elapsed_nanos = dur.as_nanos() as f64;
-            let cycles_per_nano = (n_iter as f64) / elapsed_nanos;
+            let cycles_per_nano = (cpu.cycle_count as f64) / elapsed_nanos;
             let cycles_per_second = cycles_per_nano * 1e9;
             println!(
                 "CPU Execution frequency {}",
@@ -129,11 +144,32 @@ impl System {
             );
             lcd_ref.lock().unwrap().stop_window_thread();
         });
+        let sound_thread_handle = std::thread::spawn(move || {
+            let start = std::time::Instant::now();
+            loop {
+                let mut sound = sound_ref.lock().unwrap();
+                sound.next(&sound_ram_ref);
+                if sound_loop_finished_ref.load(Ordering::Relaxed) {
+                    break;
+                }
+            }
+            let dur = std::time::Instant::now().duration_since(start);
+            let elapsed_nanos = dur.as_nanos() as f64;
+            let cycles_per_nano = (n_iter as f64) / elapsed_nanos;
+            let cycles_per_second = cycles_per_nano * 1e9;
+            println!(
+                "Sound Execution frequency {}",
+                format_frequency(cycles_per_second as f32)
+            );
+            sound_ref.lock().unwrap().stop_sound_thread();
+        });
         println!("Wating for join");
         cpu_thread_handle.join().unwrap();
         println!("CPU joined");
         lcd_thread_handle.join().unwrap();
         println!("LCD joined");
+        sound_thread_handle.join().unwrap();
+        println!("Sound joined");
 
         self
     }
@@ -153,11 +189,13 @@ impl System {
     pub fn boot(&mut self) {
         let mut ram = self.ram.lock().unwrap();
         let mut cpu = self.cpu.lock().unwrap();
-        self.bootlock_register.lock();
+        self.bootlock_register.lock().unwrap().lock();
         self.boot_rom.load_in_ram(&mut ram);
-        self.bootlock_register.load_in_ram(&mut ram);
+        self.bootlock_register.lock().unwrap().load_in_ram(&mut ram);
         let fakerom = ram::FakeRom::new();
         fakerom.load_in_ram(&mut ram);
+        let fake_checksum = ram::FakeChecksum::new();
+        fake_checksum.load_in_ram(&mut ram);
         cpu.reset(&ram);
     }
 }
