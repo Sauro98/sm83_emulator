@@ -455,6 +455,10 @@ impl WhiteNoise {
             frequency: frequency,
         }
     }
+
+    fn is_initial(&self) -> bool {
+        self.initial
+    }
 }
 
 impl Iterator for WhiteNoise {
@@ -568,9 +572,9 @@ impl SoundTerminal {
 
     pub fn set_sound1(&mut self, has_sound: bool, channel_1_registers: &mut Channel1Registers) {
         if has_sound {
-            let tmp_sound = Some(ToneNSweep::from_channel1(channel_1_registers)).unwrap();
-            if tmp_sound.is_initial() {
-                self.sound_1 = Some(tmp_sound);
+            let tmp_sound = Some(ToneNSweep::from_channel1(channel_1_registers));
+            if tmp_sound.as_ref().unwrap().is_initial() {
+                self.sound_1 = tmp_sound;
                 println!(
                     "Sound terminal sound 1 changed from {} to {}",
                     false, has_sound
@@ -581,9 +585,9 @@ impl SoundTerminal {
 
     pub fn set_sound2(&mut self, has_sound: bool, channel_2_registers: &mut Channel2Registers) {
         if has_sound {
-            let tmp_sound = Some(ToneNSweep::from_channel2(channel_2_registers)).unwrap();
-            if tmp_sound.is_initial() {
-                self.sound_2 = Some(tmp_sound);
+            let tmp_sound = Some(ToneNSweep::from_channel2(channel_2_registers));
+            if tmp_sound.as_ref().unwrap().is_initial() {
+                self.sound_2 = tmp_sound;
                 println!(
                     "Sound terminal sound 2 changed from {} to {}",
                     false, has_sound
@@ -605,11 +609,13 @@ impl SoundTerminal {
 
     pub fn set_sound4(&mut self, has_sound: bool, channel_4_registers: &mut Channel4Registers) {
         if has_sound {
-            if channel_4_registers.counter_consecutive.get_value() & 0x80 > 0 {
+            let tmp_sound = Some(WhiteNoise::from_channel4(channel_4_registers));
+            if tmp_sound.as_ref().unwrap().is_initial() {
                 println!(
                     "Sound terminal sound 4 changed from {} to {}",
                     false, has_sound
                 );
+                self.sound_4 = tmp_sound;
             }
         }
     }
