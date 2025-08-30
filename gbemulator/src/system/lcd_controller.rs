@@ -14,6 +14,8 @@ const VBLANK_PERIOD: std::time::Duration = std::time::Duration::from_millis(16);
 const BG_TILEMAP_SELECT_ADDRESSES: [u16; 2] = [0x9800, 0x9C00];
 const BG_WINDOW_TILEDATA_SELECT_ADDRESSES: [u16; 2] = [0x8800, 0x8000];
 const BG_SHADES: [u8; 4] = [255, 192, 64, 0];
+const GB_SCREEN_WIDTH: usize = 160;
+const GB_SCREEN_HEIGHT: usize = 144;
 
 #[derive(Clone)]
 enum LCDMode {
@@ -53,7 +55,7 @@ impl LCDMode {
 
     pub fn get_vertical_line(&self) -> u8 {
         match self {
-            LCDMode::VBLANK => 144,
+            LCDMode::VBLANK => GB_SCREEN_HEIGHT as u8,
             _ => 0,
         }
     }
@@ -187,15 +189,19 @@ impl LCDImage {
         }
     }
 
-    pub fn get_data(&self) -> [u8; 144 * 160] {
-        let mut data = [255u8; 144 * 160];
+    pub fn get_data(&self) -> [u8; GB_SCREEN_HEIGHT * GB_SCREEN_WIDTH] {
+        let mut data = [255u8; GB_SCREEN_HEIGHT * GB_SCREEN_WIDTH];
         for i in 0i32..(255 * 255) {
             let row = i / 256;
             let col = i % 256;
             let data_row = row - self.y_pos as i32;
             let data_col = col - self.x_pos as i32;
-            if data_col >= 0 && data_col < 144 && data_row >= 0 && data_row < 160 {
-                data[data_row as usize * 144 + data_col as usize] =
+            if data_col >= 0
+                && data_col < GB_SCREEN_WIDTH as i32
+                && data_row >= 0
+                && data_row < GB_SCREEN_HEIGHT as i32
+            {
+                data[data_row as usize * GB_SCREEN_WIDTH + data_col as usize] =
                     self.pixel_data[row as usize * 256 + col as usize];
             }
         }
@@ -353,7 +359,10 @@ impl LCDController {
                         let mut ready = image_ready_ref.lock().unwrap();
                         if *ready {
                             let current_data = pixel_data_ref.lock().unwrap().get_data();
-                            let image = ImageView::new(ImageInfo::mono8(144, 160), &current_data);
+                            let image = ImageView::new(
+                                ImageInfo::mono8(GB_SCREEN_WIDTH as u32, GB_SCREEN_HEIGHT as u32),
+                                &current_data,
+                            );
                             let fps = 1e9 / prev_cycle_time.elapsed().as_nanos() as f64;
                             display_window
                                 .set_image(format!("GameBoy Screen {:.2} fps", fps), image)
