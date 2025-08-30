@@ -10,11 +10,63 @@ use rodio::source::{SineWave, Source};
 use rodio::{Decoder, OutputStream, Sink};
 use std::env;
 use std::io::IntoInnerError;
+use std::num::NonZeroU64;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+
+#[derive(Clone)]
+pub struct VolumeEnvelope {
+    initial_volume: u8,
+    current_volume: u8,
+    envelope_direction: bool,
+    envelope_sweeps: u8,
+    last_envelope_time: Instant,
+    envelope_count: u8,
+}
+
+impl VolumeEnvelope {
+    pub fn new(initial_volume: u8, envelope_direction: bool, envelope_sweeps: u8) -> Self {
+        VolumeEnvelope {
+            initial_volume,
+            current_volume: initial_volume,
+            envelope_direction,
+            envelope_sweeps,
+            last_envelope_time: Instant::now(),
+            envelope_count: 0,
+        }
+    }
+
+    pub fn get_current_volume(&mut self) -> f32 {
+        if self.envelope_count > self.envelope_sweeps {
+            return self.current_volume as f32 / 15.0;
+        }
+        let envelope_duration = (self.envelope_sweeps as u64 * 1e6 as u64) / 64;
+        let envelope_duration = Duration::from_micros(envelope_duration);
+        if self.last_envelope_time.elapsed() > envelope_duration {
+            self.last_envelope_time = Instant::now();
+            if self.envelope_direction {
+                if self.current_volume < 15 {
+                    self.current_volume += 1;
+                }
+            } else {
+                if self.current_volume > 0 {
+                    self.current_volume -= 1;
+                }
+            }
+            self.envelope_count += 1;
+        }
+        return self.current_volume as f32 / 15.0;
+    }
+
+    pub fn reset(&mut self) {
+        self.current_volume = self.initial_volume;
+        self.envelope_count = 0;
+        self.last_envelope_time = Instant::now();
+    }
+}
+
 #[derive(Clone)]
 pub struct ToneNSweep {
-    last_period: Instant,
     sweep_time: Duration,
     last_sweep_time: Instant,
     sweep_direction: bool,
@@ -22,21 +74,16 @@ pub struct ToneNSweep {
     sweep_count: u8,
     wave_pattern_duty: u8,
     sound_length: Option<Duration>,
-    initial_volume: u8,
-    current_volume: u8,
-    envelope_direction: bool,
-    envelope_sweeps: u8,
-    last_envelope_time: Instant,
-    envelope_count: u8,
+    volume_envelope: VolumeEnvelope,
     initial_frequency: u32,
     current_frequency: u32,
     initial: bool,
     initial_time: Instant,
-    counter_consecutive_selection: bool,
     phase: f32,
 }
 
 impl ToneNSweep {
+    pub const SAMPLE_RATE: f32 = 48000.0f32;
     pub fn new(
         sweep_time: Duration,
         sweep_direction: bool,
@@ -48,10 +95,8 @@ impl ToneNSweep {
         envelope_sweeps: u8,
         initial_frequency: u32,
         initial: bool,
-        counter_consecutive_selection: bool,
     ) -> Self {
         ToneNSweep {
-            last_period: Instant::now(),
             sweep_time,
             last_sweep_time: Instant::now(),
             sweep_direction,
@@ -59,17 +104,15 @@ impl ToneNSweep {
             sweep_count: 0,
             wave_pattern_duty,
             sound_length,
-            initial_volume,
-            current_volume: initial_volume,
-            envelope_direction,
-            envelope_sweeps,
-            last_envelope_time: Instant::now(),
-            envelope_count: 0,
+            volume_envelope: VolumeEnvelope::new(
+                initial_volume,
+                envelope_direction,
+                envelope_sweeps,
+            ),
             initial_frequency,
             current_frequency: initial_frequency,
             initial,
             initial_time: Instant::now(),
-            counter_consecutive_selection,
             phase: 0.0f32,
         }
     }
@@ -118,6 +161,7 @@ impl ToneNSweep {
                 .set_value(freq_hi_register_value & 0x7F);
         }
         let counter_consecutive_selection = (freq_hi_register_value & 0x40) > 0;
+        let repeat = !counter_consecutive_selection;
 
         if initial {
             println!(
@@ -138,29 +182,26 @@ impl ToneNSweep {
         }
 
         ToneNSweep {
-            last_period: Instant::now(),
             sweep_time: sweep_time,
             last_sweep_time: Instant::now(),
             sweep_direction: sweep_direction,
             sweep_shifts: sweep_shifts,
             sweep_count: 0,
             wave_pattern_duty: wave_pattern_duty,
-            sound_length: if counter_consecutive_selection {
-                Some(Duration::from_nanos(sound_length))
-            } else {
+            sound_length: if repeat {
                 None
+            } else {
+                Some(Duration::from_nanos(sound_length))
             },
-            initial_volume: initial_volume,
-            current_volume: initial_volume,
-            envelope_direction: envelope_direction,
-            envelope_sweeps: envelope_steps,
-            envelope_count: 0,
-            last_envelope_time: Instant::now(),
+            volume_envelope: VolumeEnvelope::new(
+                initial_volume,
+                envelope_direction,
+                envelope_steps,
+            ),
             initial_frequency: initial_frequency,
             current_frequency: initial_frequency,
             initial: initial,
             initial_time: Instant::now(),
-            counter_consecutive_selection: counter_consecutive_selection,
             phase: 0.0f32,
         }
     }
@@ -193,6 +234,7 @@ impl ToneNSweep {
         }
 
         let counter_consecutive_selection = (freq_hi_register_value & 0x40) > 0;
+        let repeat = !counter_consecutive_selection;
 
         if initial {
             println!("Initial frequency {}Hz", initial_frequency);
@@ -207,40 +249,28 @@ impl ToneNSweep {
         }
 
         ToneNSweep {
-            last_period: Instant::now(),
             sweep_time: Duration::ZERO,
             last_sweep_time: Instant::now(),
             sweep_direction: false,
             sweep_shifts: 0,
             sweep_count: 0,
             wave_pattern_duty: wave_pattern_duty,
-            sound_length: if counter_consecutive_selection {
-                Some(Duration::from_nanos(sound_length))
-            } else {
+            sound_length: if repeat {
                 None
+            } else {
+                Some(Duration::from_nanos(sound_length))
             },
-            initial_volume: initial_volume,
-            current_volume: initial_volume,
-            envelope_direction: envelope_direction,
-            envelope_sweeps: envelope_steps,
-            last_envelope_time: Instant::now(),
-            envelope_count: 0,
+            volume_envelope: VolumeEnvelope::new(
+                initial_volume,
+                envelope_direction,
+                envelope_steps,
+            ),
             initial_frequency: initial_frequency,
             current_frequency: initial_frequency,
             initial: initial,
             initial_time: Instant::now(),
-            counter_consecutive_selection: counter_consecutive_selection,
             phase: 0.0f32,
         }
-    }
-
-    pub fn period(&self) -> Duration {
-        let period = 1e6 as u32 / self.current_frequency;
-        Duration::from_micros(period as u64)
-    }
-
-    pub fn period_nanos(&self) -> u64 {
-        1e9 as u64 / self.current_frequency as u64
     }
 
     pub fn wave_duty(&self) -> f32 {
@@ -251,28 +281,6 @@ impl ToneNSweep {
             3 => 75.0,
             _ => 50.0,
         }) / 100.0
-    }
-
-    pub fn get_current_volume(&mut self) -> f32 {
-        if self.envelope_count > self.envelope_sweeps {
-            return self.current_volume as f32 / 15.0;
-        }
-        let envelope_duration = (self.envelope_sweeps as u64 * 1e6 as u64) / 64;
-        let envelope_duration = Duration::from_micros(envelope_duration);
-        if self.last_envelope_time.elapsed() > envelope_duration {
-            self.last_envelope_time = Instant::now();
-            if self.envelope_direction {
-                if self.current_volume < 15 {
-                    self.current_volume += 1;
-                }
-            } else {
-                if self.current_volume > 0 {
-                    self.current_volume -= 1;
-                }
-            }
-            self.envelope_count += 1;
-        }
-        return self.current_volume as f32 / 15.0;
     }
 
     pub fn is_initial(&self) -> bool {
@@ -286,19 +294,7 @@ impl Iterator for ToneNSweep {
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(length) = self.sound_length {
             if self.initial_time.elapsed() > length {
-                if !self.counter_consecutive_selection {
-                    self.initial_time = Instant::now();
-                    self.current_frequency = self.initial_frequency;
-                    self.current_volume = self.initial_volume;
-                    self.envelope_count = 0;
-                    self.sweep_count = 0;
-                    self.last_sweep_time = Instant::now();
-                    self.last_envelope_time = Instant::now();
-                    self.last_period = Instant::now();
-                    self.sweep_shifts = 0;
-                } else {
-                    return None;
-                }
+                return None;
             }
         }
         if self.sweep_shifts > 0 && self.last_sweep_time.elapsed() > self.sweep_time {
@@ -313,24 +309,22 @@ impl Iterator for ToneNSweep {
         }
 
         if self.sweep_count > self.sweep_shifts {
-            if !self.counter_consecutive_selection {
+            if self.sound_length.is_none() {
                 self.sweep_count = 0;
                 self.current_frequency = self.initial_frequency;
-                self.current_volume = self.initial_volume;
-                self.envelope_count = 0;
                 self.last_sweep_time = Instant::now();
-                self.last_envelope_time = Instant::now();
+                self.volume_envelope.reset();
             } else {
                 return None;
             }
         }
 
         let res = if self.phase < self.wave_duty() {
-            self.get_current_volume()
+            self.volume_envelope.get_current_volume()
         } else {
             0.0f32
         };
-        let phase_step = self.current_frequency as f32 / 48000.0;
+        let phase_step = self.current_frequency as f32 / Self::SAMPLE_RATE;
         self.phase = (self.phase + phase_step).rem_euclid(1.0f32);
         Some(res)
     }
@@ -346,15 +340,172 @@ impl Source for ToneNSweep {
     }
 
     fn sample_rate(&self) -> u32 {
-        48000
+        Self::SAMPLE_RATE as u32
     }
 
     fn total_duration(&self) -> Option<Duration> {
-        if self.counter_consecutive_selection {
-            self.sound_length
-        } else {
-            None
+        self.sound_length
+    }
+}
+
+#[derive(Clone)]
+pub struct WhiteNoise {
+    sound_length: Option<Duration>,
+    volume_envelope: VolumeEnvelope,
+    half_width: bool,
+    lfsr: u16,
+    initial: bool,
+    initial_time: Instant,
+    new_phase: bool,
+    phase: f32,
+    frequency: f32,
+}
+
+impl WhiteNoise {
+    pub const SAMPLE_RATE: f32 = 48000.0f32;
+
+    pub fn new(
+        sound_length: Option<Duration>,
+        initial_volume: u8,
+        envelope_direction: bool,
+        envelope_sweeps: u8,
+        half_width: bool,
+        frequency: f32,
+        initial: bool,
+    ) -> Self {
+        WhiteNoise {
+            sound_length,
+            volume_envelope: VolumeEnvelope::new(
+                initial_volume,
+                envelope_direction,
+                envelope_sweeps,
+            ),
+            half_width,
+            lfsr: 0x0,
+            initial,
+            initial_time: Instant::now(),
+            new_phase: true,
+            phase: 0.0f32,
+            frequency,
         }
+    }
+    pub fn from_channel4(channel_4_registers: &mut Channel4Registers) -> Self {
+        let sound_length_register_value = channel_4_registers.sound_length.get_value();
+        let sound_length = 64 - (sound_length_register_value & 0x3F);
+        let sound_length = sound_length as u64 * 3906250u64;
+
+        let volume_register_value = channel_4_registers.volume_envelope.get_value();
+        let initial_volume = (volume_register_value & 0xF0) >> 4;
+        let envelope_direction = (volume_register_value & 0x80) > 0;
+        let envelope_steps = volume_register_value & 0x07;
+
+        let polynomial_counter_register_value = channel_4_registers.polynomial_counter.get_value();
+        let shift_clock_frequency = (polynomial_counter_register_value & 0xF0) >> 4;
+        let half_width = (polynomial_counter_register_value & 0x08) > 0;
+        let dividing_ratio = polynomial_counter_register_value & 0x07;
+        let dividing_ratio = if dividing_ratio == 0 {
+            0.5f32
+        } else {
+            dividing_ratio as f32
+        };
+        let frequency = 524288f32 / dividing_ratio / 2f32.powi(shift_clock_frequency as i32 + 1);
+
+        let counter_consecutive_register_value =
+            channel_4_registers.counter_consecutive.get_value();
+        let initial = (counter_consecutive_register_value & 0x80) > 0;
+        let counter_consecutive_selection = (counter_consecutive_register_value & 0x40) > 0;
+        let repeat = !counter_consecutive_selection;
+
+        // reset_initial flag
+        if initial {
+            channel_4_registers
+                .counter_consecutive
+                .set_value(counter_consecutive_register_value & 0x7F);
+        }
+
+        if initial {
+            println!("Initial frequency {}Hz", frequency);
+            println!("Counter selection {}", counter_consecutive_selection);
+            println!("Sound duration {:?}", sound_length);
+            println!("initial volume {}", initial_volume);
+            println!("initial {}", initial);
+            println!("envelope sweeping {}", envelope_steps);
+            println!("envelope direction {}", envelope_direction);
+            println!("half width {}", half_width);
+            println!("-------------------");
+        }
+
+        WhiteNoise {
+            sound_length: if repeat {
+                None
+            } else {
+                Some(Duration::from_nanos(sound_length))
+            },
+            volume_envelope: VolumeEnvelope::new(
+                initial_volume,
+                envelope_direction,
+                envelope_steps,
+            ),
+            half_width: half_width,
+            lfsr: 0,
+            initial: initial,
+            initial_time: Instant::now(),
+            new_phase: true,
+            phase: 0.0f32,
+            frequency: frequency,
+        }
+    }
+}
+
+impl Iterator for WhiteNoise {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(length) = self.sound_length {
+            if self.initial_time.elapsed() > length {
+                return None;
+            }
+        }
+
+        let res = if self.phase < 0.5 {
+            if self.new_phase {
+                self.new_phase = false;
+                let comparison = ((self.lfsr & 0x0002) >> 1) == (self.lfsr & 0x0001);
+                let mut addend = (comparison as u16) << 15;
+                if self.half_width {
+                    self.lfsr &= 0xFF7F;
+                    addend |= (comparison as u16) << 7;
+                }
+                self.lfsr |= addend;
+                self.lfsr >>= 1;
+            }
+            (self.lfsr & 0x0001) as f32 * self.volume_envelope.get_current_volume()
+        } else {
+            self.new_phase = true;
+            0.0f32
+        };
+
+        let phase_step = self.frequency as f32 / Self::SAMPLE_RATE;
+        self.phase = (self.phase + phase_step).rem_euclid(1.0f32);
+        Some(res)
+    }
+}
+
+impl Source for WhiteNoise {
+    fn current_frame_len(&self) -> Option<usize> {
+        None
+    }
+
+    fn channels(&self) -> u16 {
+        1
+    }
+
+    fn sample_rate(&self) -> u32 {
+        Self::SAMPLE_RATE as u32
+    }
+
+    fn total_duration(&self) -> Option<Duration> {
+        self.sound_length
     }
 }
 
@@ -363,7 +514,7 @@ pub struct SoundTerminal {
     sound_1: Option<ToneNSweep>,
     sound_2: Option<ToneNSweep>,
     sound_3: Option<ToneNSweep>,
-    sound_4: Option<ToneNSweep>,
+    sound_4: Option<WhiteNoise>,
 }
 
 impl SoundTerminal {
@@ -387,25 +538,32 @@ impl SoundTerminal {
         self.volume = volume;
     }
 
-    pub fn consume(&mut self) -> Vec<ToneNSweep> {
-        let mut sounds = vec![];
-        if let Some(s1) = &self.sound_1 {
-            sounds.push(s1.clone());
-        }
-        if let Some(s2) = &self.sound_2 {
-            sounds.push(s2.clone());
-        }
-        if let Some(s3) = &self.sound_3 {
-            sounds.push(s3.clone());
-        }
-        if let Some(s4) = &self.sound_4 {
-            sounds.push(s4.clone());
-        }
+    pub fn consume_sound1(&mut self) -> Option<ToneNSweep> {
+        let sound = self.sound_1.clone();
         self.sound_1 = None;
+        sound
+    }
+    pub fn consume_sound2(&mut self) -> Option<ToneNSweep> {
+        let sound = self.sound_2.clone();
         self.sound_2 = None;
+        sound
+    }
+    pub fn consume_sound3(&mut self) -> Option<ToneNSweep> {
+        let sound = self.sound_3.clone();
         self.sound_3 = None;
+        sound
+    }
+    pub fn consume_sound4(&mut self) -> Option<WhiteNoise> {
+        let sound = self.sound_4.clone();
         self.sound_4 = None;
-        sounds
+        sound
+    }
+
+    pub fn set_sounds(&mut self, has_sound: [bool; 4], sound_regsters: &mut SoundRegisters) {
+        self.set_sound1(has_sound[0], &mut sound_regsters.channel_1);
+        self.set_sound2(has_sound[1], &mut sound_regsters.channel_2);
+        self.set_sound3(has_sound[2], &mut sound_regsters.channel_3);
+        self.set_sound4(has_sound[3], &mut sound_regsters.channel_4);
     }
 
     pub fn set_sound1(&mut self, has_sound: bool, channel_1_registers: &mut Channel1Registers) {
@@ -457,6 +615,43 @@ impl SoundTerminal {
     }
 }
 
+pub fn reproduce_sound_terminal(
+    terminal_ref: Arc<Mutex<SoundTerminal>>,
+    sinks: &Vec<Sink>,
+    terminal_name: &str,
+) {
+    let mut terminal = terminal_ref.lock().unwrap();
+    let volume = terminal.volume;
+
+    if let Some(sound1) = terminal.consume_sound1() {
+        println!("Consuming sound 1 in terminal {}", terminal_name);
+        sinks[0].clear();
+        sinks[0].append(sound1.amplify(volume as f32));
+        sinks[0].play();
+    }
+
+    if let Some(sound2) = terminal.consume_sound2() {
+        println!("Consuming sound 2 in terminal {}", terminal_name);
+        sinks[1].clear();
+        sinks[1].append(sound2.amplify(volume as f32));
+        sinks[1].play();
+    }
+
+    if let Some(sound3) = terminal.consume_sound3() {
+        println!("Consuming sound 1 in terminal {}", terminal_name);
+        sinks[2].clear();
+        sinks[2].append(sound3.amplify(volume as f32));
+        sinks[2].play();
+    }
+
+    if let Some(sound4) = terminal.consume_sound4() {
+        println!("Consuming sound 1 in terminal {}", terminal_name);
+        sinks[3].clear();
+        sinks[3].append(sound4.amplify(volume as f32));
+        sinks[3].play();
+    }
+}
+
 pub struct SoundController {
     clock: SystemClock,
     sound_registers: SoundRegisters,
@@ -482,30 +677,22 @@ impl SoundController {
             thread_handle: std::thread::spawn(move || {
                 // _stream must live as long as the sink
                 let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-                let sink = Sink::try_new(&stream_handle).unwrap();
-                loop {
-                    //println!("inside sound loop");
-                    {
-                        let mut terminal_1 = terminal_1_ref.lock().unwrap();
-                        let t1_sounds = terminal_1.consume();
-                        let t1_volume = terminal_1.volume;
-                        if t1_sounds.len() > 0 {
-                            println!("Terminal 1 has {} sounds to play", t1_sounds.len());
-                            sink.clear();
-                            sink.play();
-                        }
-                        for sound in t1_sounds {
-                            sink.append(sound.amplify(t1_volume as f32));
-                            println!("appended sound to terminal 1");
-                        }
-                    }
+                let terminal1_sinks = vec![
+                    Sink::try_new(&stream_handle).unwrap(),
+                    Sink::try_new(&stream_handle).unwrap(),
+                    Sink::try_new(&stream_handle).unwrap(),
+                    Sink::try_new(&stream_handle).unwrap(),
+                ];
 
-                    /*let t2_sounds = terminal_2_ref.lock().unwrap().consume();
-                    let t2_volume = terminal_2_ref.lock().unwrap().volume;
-                    for sound in t2_sounds {
-                        sink.append(sound.amplify(t2_volume as f32));
-                        println!("appended sound to terminal 2");
-                    }*/
+                let terminal2_sinks = vec![
+                    Sink::try_new(&stream_handle).unwrap(),
+                    Sink::try_new(&stream_handle).unwrap(),
+                    Sink::try_new(&stream_handle).unwrap(),
+                    Sink::try_new(&stream_handle).unwrap(),
+                ];
+                loop {
+                    reproduce_sound_terminal(terminal_1_ref.clone(), &terminal1_sinks, "1");
+                    reproduce_sound_terminal(terminal_2_ref.clone(), &terminal2_sinks, "2");
 
                     let finished = thread_finished.lock().unwrap();
                     if *finished {
@@ -540,47 +727,16 @@ impl SoundController {
                         .sound_registers
                         .sound_output_selection
                         .terminal_1_sound();
-                    //println!("Terminal 1 enabled sounds: {:?}", enabled_sounds_terminal_1);
-                    terminal1.set_sound1(
-                        enabled_sounds_terminal_1[0],
-                        &mut self.sound_registers.channel_1,
-                    );
-                    terminal1.set_sound2(
-                        enabled_sounds_terminal_1[1],
-                        &mut self.sound_registers.channel_2,
-                    );
-                    terminal1.set_sound3(
-                        enabled_sounds_terminal_1[2],
-                        &mut self.sound_registers.channel_3,
-                    );
-                    terminal1.set_sound4(
-                        enabled_sounds_terminal_1[3],
-                        &mut self.sound_registers.channel_4,
-                    );
-
-                    /*let mut terminal2 = self.terminal_2.lock().unwrap();
+                    terminal1.set_sounds(enabled_sounds_terminal_1, &mut self.sound_registers);
+                }
+                {
+                    let mut terminal2 = self.terminal_2.lock().unwrap();
                     terminal2.set_volume(self.sound_registers.channel_control.terminal_2_volume());
                     let enabled_sounds_terminal_2 = self
                         .sound_registers
                         .sound_output_selection
                         .terminal_2_sound();
-                    //println!("Terminal 1 enabled sounds: {:?}", enabled_sounds_terminal_1);
-                    terminal2.set_sound1(
-                        enabled_sounds_terminal_2[0],
-                        &mut self.sound_registers.channel_1,
-                    );
-                    terminal2.set_sound2(
-                        enabled_sounds_terminal_2[1],
-                        &mut self.sound_registers.channel_2,
-                    );
-                    terminal2.set_sound3(
-                        enabled_sounds_terminal_2[2],
-                        &mut self.sound_registers.channel_3,
-                    );
-                    terminal2.set_sound4(
-                        enabled_sounds_terminal_2[3],
-                        &mut self.sound_registers.channel_4,
-                    );*/
+                    terminal2.set_sounds(enabled_sounds_terminal_2, &mut self.sound_registers);
                 }
                 self.sound_registers.load_in_ram(&mut ram);
             }
