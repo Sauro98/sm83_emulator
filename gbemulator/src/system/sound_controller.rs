@@ -6,61 +6,52 @@ use super::ram::sound_registers::{
     SoundRegisters,
 };
 use super::ram::{MemoryRegister, RAM};
-use rodio::source::{SineWave, Source};
-use rodio::{Decoder, OutputStream, Sink};
-use std::env;
-use std::io::IntoInnerError;
-use std::num::NonZeroU64;
+use rodio::source::Source;
+use rodio::{OutputStream, Sink};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 #[derive(Clone)]
 pub struct VolumeEnvelope {
-    initial_volume: u8,
-    current_volume: u8,
+    initial_volume: f32,
+    current_volume: f32,
     envelope_direction: bool,
-    envelope_sweeps: u8,
     last_envelope_time: Instant,
-    envelope_count: u8,
+    envelope_duration: Duration,
 }
 
 impl VolumeEnvelope {
-    pub fn new(initial_volume: u8, envelope_direction: bool, envelope_sweeps: u8) -> Self {
+    pub fn new(initial_volume: f32, envelope_direction: bool, envelope_sweeps: u8) -> Self {
+        let envelope_duration = (envelope_sweeps as u64 * 1e6 as u64) / 64;
+        let envelope_duration = Duration::from_micros(envelope_duration);
+
         VolumeEnvelope {
             initial_volume,
             current_volume: initial_volume,
             envelope_direction,
-            envelope_sweeps,
             last_envelope_time: Instant::now(),
-            envelope_count: 0,
+            envelope_duration: envelope_duration,
         }
     }
 
     pub fn get_current_volume(&mut self) -> f32 {
-        if self.envelope_count > self.envelope_sweeps {
-            return self.current_volume as f32 / 15.0;
-        }
-        let envelope_duration = (self.envelope_sweeps as u64 * 1e6 as u64) / 64;
-        let envelope_duration = Duration::from_micros(envelope_duration);
-        if self.last_envelope_time.elapsed() > envelope_duration {
+        if self.last_envelope_time.elapsed() > self.envelope_duration {
             self.last_envelope_time = Instant::now();
             if self.envelope_direction {
-                if self.current_volume < 15 {
-                    self.current_volume += 1;
+                if self.current_volume < 15.0f32 {
+                    self.current_volume += 1.0f32;
                 }
             } else {
-                if self.current_volume > 0 {
-                    self.current_volume -= 1;
+                if self.current_volume > 0.0f32 {
+                    self.current_volume -= 1.0f32;
                 }
             }
-            self.envelope_count += 1;
         }
         return self.current_volume as f32 / 15.0;
     }
 
     pub fn reset(&mut self) {
         self.current_volume = self.initial_volume;
-        self.envelope_count = 0;
         self.last_envelope_time = Instant::now();
     }
 }
@@ -90,7 +81,7 @@ impl ToneNSweep {
         sweep_shifts: u8,
         wave_pattern_duty: u8,
         sound_length: Option<Duration>,
-        initial_volume: u8,
+        initial_volume: f32,
         envelope_direction: bool,
         envelope_sweeps: u8,
         initial_frequency: u32,
@@ -119,7 +110,7 @@ impl ToneNSweep {
 
     pub fn from_channel1(channel1_registers: &mut Channel1Registers) -> Self {
         let sweep_register_value = channel1_registers.sweep.get_value();
-        let sweep_time = match ((sweep_register_value & 0x70) >> 4) {
+        let sweep_time = match (sweep_register_value & 0x70) >> 4 {
             0x0 => Duration::ZERO,
             0x1 => Duration::from_micros(7800),
             0x2 => Duration::from_micros(15600),
@@ -140,7 +131,7 @@ impl ToneNSweep {
 
         let volume_register_value = channel1_registers.volume_envelope.get_value();
         let initial_volume = (volume_register_value & 0xF0) >> 4;
-        let envelope_direction = (volume_register_value & 0x80) > 0;
+        let envelope_direction = (volume_register_value & 0x08) > 0;
         let envelope_steps = volume_register_value & 0x03;
 
         let freq_hi_register_value = channel1_registers.frequency_hi.get_value();
@@ -194,7 +185,7 @@ impl ToneNSweep {
                 Some(Duration::from_nanos(sound_length))
             },
             volume_envelope: VolumeEnvelope::new(
-                initial_volume,
+                initial_volume as f32,
                 envelope_direction,
                 envelope_steps,
             ),
@@ -214,7 +205,7 @@ impl ToneNSweep {
 
         let volume_register_value = channel2_registers.volume_envelope.get_value();
         let initial_volume = (volume_register_value & 0xF0) >> 4;
-        let envelope_direction = (volume_register_value & 0x80) > 0;
+        let envelope_direction = (volume_register_value & 0x08) > 0;
         let envelope_steps = volume_register_value & 0x07;
 
         let initial_frequency = channel2_registers.frequency_lo.get_value() as u16;
@@ -261,7 +252,7 @@ impl ToneNSweep {
                 Some(Duration::from_nanos(sound_length))
             },
             volume_envelope: VolumeEnvelope::new(
-                initial_volume,
+                initial_volume as f32,
                 envelope_direction,
                 envelope_steps,
             ),
@@ -356,7 +347,6 @@ pub struct WhiteNoise {
     lfsr: u16,
     initial: bool,
     initial_time: Instant,
-    new_phase: bool,
     phase: f32,
     frequency: f32,
 }
@@ -366,7 +356,7 @@ impl WhiteNoise {
 
     pub fn new(
         sound_length: Option<Duration>,
-        initial_volume: u8,
+        initial_volume: f32,
         envelope_direction: bool,
         envelope_sweeps: u8,
         half_width: bool,
@@ -384,7 +374,6 @@ impl WhiteNoise {
             lfsr: 0x0,
             initial,
             initial_time: Instant::now(),
-            new_phase: true,
             phase: 0.0f32,
             frequency,
         }
@@ -396,7 +385,7 @@ impl WhiteNoise {
 
         let volume_register_value = channel_4_registers.volume_envelope.get_value();
         let initial_volume = (volume_register_value & 0xF0) >> 4;
-        let envelope_direction = (volume_register_value & 0x80) > 0;
+        let envelope_direction = (volume_register_value & 0x08) > 0;
         let envelope_steps = volume_register_value & 0x07;
 
         let polynomial_counter_register_value = channel_4_registers.polynomial_counter.get_value();
@@ -442,7 +431,7 @@ impl WhiteNoise {
                 Some(Duration::from_nanos(sound_length))
             },
             volume_envelope: VolumeEnvelope::new(
-                initial_volume,
+                initial_volume as f32,
                 envelope_direction,
                 envelope_steps,
             ),
@@ -450,7 +439,6 @@ impl WhiteNoise {
             lfsr: 0,
             initial: initial,
             initial_time: Instant::now(),
-            new_phase: true,
             phase: 0.0f32,
             frequency: frequency,
         }
@@ -471,27 +459,20 @@ impl Iterator for WhiteNoise {
             }
         }
 
-        let res = if self.phase < 0.5 {
-            if self.new_phase {
-                self.new_phase = false;
-                let comparison = ((self.lfsr & 0x0002) >> 1) == (self.lfsr & 0x0001);
-                let mut addend = (comparison as u16) << 15;
-                if self.half_width {
-                    self.lfsr &= 0xFF7F;
-                    addend |= (comparison as u16) << 7;
-                }
-                self.lfsr |= addend;
-                self.lfsr >>= 1;
-            }
-            (self.lfsr & 0x0001) as f32 * self.volume_envelope.get_current_volume()
-        } else {
-            self.new_phase = true;
-            0.0f32
-        };
-
         let phase_step = self.frequency as f32 / Self::SAMPLE_RATE;
-        self.phase = (self.phase + phase_step).rem_euclid(1.0f32);
-        Some(res)
+        self.phase = self.phase + phase_step;
+        if self.phase >= 1.0f32 {
+            let comparison = ((self.lfsr & 0x0002) >> 1) == (self.lfsr & 0x0001);
+            let mut addend = (comparison as u16) << 15;
+            if self.half_width {
+                self.lfsr &= 0xFF7F;
+                addend |= (comparison as u16) << 7;
+            }
+            self.lfsr |= addend;
+            self.lfsr >>= 1;
+        }
+        self.phase = self.phase.rem_euclid(1.0f32);
+        Some((self.lfsr & 0x0001) as f32 * self.volume_envelope.get_current_volume())
     }
 }
 

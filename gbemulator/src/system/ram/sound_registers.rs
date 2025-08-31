@@ -295,7 +295,7 @@ impl ChannelControlRegister {
     }
 
     pub fn terminal_1_volume(&self) -> u8 {
-        (self.value & 0x03)
+        self.value & 0x03
     }
 
     pub fn terminal_2_volume(&self) -> u8 {

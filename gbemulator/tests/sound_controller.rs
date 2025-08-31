@@ -23,13 +23,13 @@ fn test_sound_1() {
 fn test_white_noise() {
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
     let sink = Sink::try_new(&stream_handle).unwrap();
-    let white_noise = WhiteNoise::new(None, 15, true, 15, false, 1040.0f32, true);
+    let white_noise = WhiteNoise::new(None, 15, true, 15, false, 2080.0f32, true);
     sink.append(white_noise.amplify(7 as f32));
     sink.play();
     std::thread::sleep(std::time::Duration::from_millis(2000));
     sink.clear();
     std::thread::sleep(std::time::Duration::from_millis(1000));
-    let white_noise = WhiteNoise::new(None, 15, true, 15, true, 1040.0f32, true);
+    let white_noise = WhiteNoise::new(None, 15, true, 15, true, 2080.0f32, true);
     sink.append(white_noise.amplify(7 as f32));
     sink.play();
     std::thread::sleep(std::time::Duration::from_millis(2000));
