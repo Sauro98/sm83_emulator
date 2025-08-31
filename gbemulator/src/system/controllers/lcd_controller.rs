@@ -1,12 +1,10 @@
-use super::clock::SystemClock;
-use super::ram::lcd_registers::{
+use crate::system::clock::SystemClock;
+use crate::system::ram::default_nonimplemented_memory_register_trait_impl;
+use crate::system::ram::lcd_registers::{
     BGPaletteRegister, LCDControlRegister, LCDStatusRegister, LYRegister, ScrollXRegister,
     ScrollYRegister,
 };
-use super::ram::{MemoryRegister, RAM};
-
-use super::ram::default_nonimplemented_memory_register_trait_impl;
-
+use crate::system::ram::{MemoryRegister, RAM};
 use show_image::{create_window, ImageInfo, ImageView};
 use std::sync::{Arc, Mutex};
 
@@ -448,7 +446,7 @@ impl MemoryRegister for LCDController {
         self.ly_register.reset();
     }
 
-    fn load_in_ram(&self, ram: &mut super::ram::RAM) -> Option<()> {
+    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
         let option_control = self.lcd_control_register.load_in_ram(ram);
         let option_status = self.lcd_status_register.load_in_ram(ram);
         let option_ly = self.ly_register.load_in_ram(ram);
@@ -459,7 +457,7 @@ impl MemoryRegister for LCDController {
         }
     }
 
-    fn read_from_ram(&mut self, ram: &super::ram::RAM) {
+    fn read_from_ram(&mut self, ram: &RAM) {
         self.lcd_control_register.read_from_ram(ram);
         self.lcd_status_register.read_from_ram(ram);
         self.ly_register.read_from_ram(ram);

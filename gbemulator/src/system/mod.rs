@@ -1,8 +1,8 @@
 pub mod clock;
-pub mod lcd_controller;
+pub mod controller;
+pub mod controllers;
 pub mod ram;
 pub mod sm83;
-pub mod sound_controller;
 
 use ram::MemoryRegister;
 use sm83::snapshot::SM83Snapshot;
@@ -30,8 +30,8 @@ pub struct System {
     ram: Arc<Mutex<ram::RAM>>,
     boot_rom: ram::BootRom,
     bootlock_register: Arc<Mutex<ram::BootLockMemoryRegister>>,
-    lcd_controller: Arc<Mutex<lcd_controller::LCDController>>,
-    sound_controller: Arc<Mutex<sound_controller::SoundController>>,
+    lcd_controller: Arc<Mutex<controllers::lcd_controller::LCDController>>,
+    sound_controller: Arc<Mutex<controllers::sound_controller::SoundController>>,
 }
 
 impl System {
@@ -41,8 +41,10 @@ impl System {
             ram: Arc::new(Mutex::new(ram::RAM::new())),
             boot_rom: ram::BootRom::new(),
             bootlock_register: Arc::new(Mutex::new(ram::BootLockMemoryRegister::new())),
-            lcd_controller: Arc::new(Mutex::new(lcd_controller::LCDController::new())),
-            sound_controller: Arc::new(Mutex::new(sound_controller::SoundController::new())),
+            lcd_controller: Arc::new(Mutex::new(controllers::lcd_controller::LCDController::new())),
+            sound_controller: Arc::new(Mutex::new(
+                controllers::sound_controller::SoundController::new(),
+            )),
         };
     }
 
@@ -59,8 +61,10 @@ impl System {
             ram: Arc::new(Mutex::new(ram)),
             boot_rom: ram::BootRom::new(),
             bootlock_register: Arc::new(Mutex::new(ram::BootLockMemoryRegister::new())),
-            lcd_controller: Arc::new(Mutex::new(lcd_controller::LCDController::new())),
-            sound_controller: Arc::new(Mutex::new(sound_controller::SoundController::new())),
+            lcd_controller: Arc::new(Mutex::new(controllers::lcd_controller::LCDController::new())),
+            sound_controller: Arc::new(Mutex::new(
+                controllers::sound_controller::SoundController::new(),
+            )),
         };
     }
 
@@ -127,16 +131,18 @@ impl System {
         });
         let lcd_thread_handle = std::thread::spawn(move || {
             let start = std::time::Instant::now();
+            let mut lcd_n_iter = 0;
             loop {
                 let mut lcd = lcd_ref.lock().unwrap();
                 lcd.next(&lcd_ram_ref);
+                lcd_n_iter += 1;
                 if lcd_loop_finished_ref.load(Ordering::Relaxed) {
                     break;
                 }
             }
             let dur = std::time::Instant::now().duration_since(start);
             let elapsed_nanos = dur.as_nanos() as f64;
-            let cycles_per_nano = (n_iter as f64) / elapsed_nanos;
+            let cycles_per_nano = (lcd_n_iter as f64) / elapsed_nanos;
             let cycles_per_second = cycles_per_nano * 1e9;
             println!(
                 "LCD Execution frequency {}",
@@ -146,16 +152,18 @@ impl System {
         });
         let sound_thread_handle = std::thread::spawn(move || {
             let start = std::time::Instant::now();
+            let mut sound_n_iter = 0;
             loop {
                 let mut sound = sound_ref.lock().unwrap();
                 sound.next(&sound_ram_ref);
+                sound_n_iter += 1;
                 if sound_loop_finished_ref.load(Ordering::Relaxed) {
                     break;
                 }
             }
             let dur = std::time::Instant::now().duration_since(start);
             let elapsed_nanos = dur.as_nanos() as f64;
-            let cycles_per_nano = (n_iter as f64) / elapsed_nanos;
+            let cycles_per_nano = (sound_n_iter as f64) / elapsed_nanos;
             let cycles_per_second = cycles_per_nano * 1e9;
             println!(
                 "Sound Execution frequency {}",

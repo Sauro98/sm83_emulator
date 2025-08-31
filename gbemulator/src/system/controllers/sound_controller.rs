@@ -1,11 +1,11 @@
 use crate::system::ram::sound_registers::Channel4Registers;
 
-use super::clock::SystemClock;
-use super::ram::sound_registers::{
+use crate::system::clock::SystemClock;
+use crate::system::ram::sound_registers::{
     Channel1Registers, Channel2Registers, Channel3Registers, SoundOutputSelectionRegister,
     SoundRegisters,
 };
-use super::ram::{MemoryRegister, RAM};
+use crate::system::ram::{MemoryRegister, RAM};
 use rodio::source::Source;
 use rodio::{OutputStream, Sink};
 use std::sync::{Arc, Mutex};
