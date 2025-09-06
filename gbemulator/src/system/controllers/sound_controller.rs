@@ -8,6 +8,7 @@ use crate::system::ram::sound_registers::{
 use crate::system::ram::{MemoryRegister, RAM};
 use rodio::source::Source;
 use rodio::{OutputStream, Sink};
+use std::path::Iter;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -15,61 +16,119 @@ use std::time::{Duration, Instant};
 pub struct VolumeEnvelope {
     initial_volume: f32,
     current_volume: f32,
-    envelope_direction: bool,
-    last_envelope_time: Instant,
-    envelope_duration: Duration,
+    envelope_direction: f32,
+    samples_per_sweep: u32,
+    sample_count: u32,
 }
 
 impl VolumeEnvelope {
-    pub fn new(initial_volume: f32, envelope_direction: bool, envelope_sweeps: u8) -> Self {
+    pub fn new(
+        initial_volume: f32,
+        envelope_direction: bool,
+        envelope_sweeps: u8,
+        sample_rate: u32,
+    ) -> Self {
         let envelope_duration = (envelope_sweeps as u64 * 1e6 as u64) / 64;
         let envelope_duration = Duration::from_micros(envelope_duration);
+        let samples_per_sweep = envelope_duration.as_secs_f32() * sample_rate as f32;
 
         VolumeEnvelope {
             initial_volume,
             current_volume: initial_volume,
-            envelope_direction,
-            last_envelope_time: Instant::now(),
-            envelope_duration: envelope_duration,
+            envelope_direction: if envelope_direction { 1.0 } else { -1.0 },
+            samples_per_sweep: samples_per_sweep as u32,
+            sample_count: 0,
         }
     }
 
     pub fn get_current_volume(&mut self) -> f32 {
-        if self.last_envelope_time.elapsed() > self.envelope_duration {
-            self.last_envelope_time = Instant::now();
-            if self.envelope_direction {
-                if self.current_volume < 15.0f32 {
-                    self.current_volume += 1.0f32;
-                }
-            } else {
-                if self.current_volume > 0.0f32 {
-                    self.current_volume -= 1.0f32;
-                }
-            }
-        }
         return self.current_volume as f32 / 15.0;
     }
 
     pub fn reset(&mut self) {
         self.current_volume = self.initial_volume;
-        self.last_envelope_time = Instant::now();
+        self.sample_count = 0;
+    }
+}
+
+impl Iterator for VolumeEnvelope {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.sample_count >= self.samples_per_sweep as u32 {
+            self.sample_count = 0;
+            self.current_volume += self.envelope_direction;
+            self.current_volume = self.current_volume.clamp(0.0f32, 15.0f32);
+        }
+        self.sample_count += 1;
+        Some(self.get_current_volume())
+    }
+}
+
+#[derive(Clone)]
+pub struct FrequencyEnvelope {
+    initial_frequency: u32,
+    current_frequency: u32,
+    sweep_direction: bool,
+    sweep_shifts: u8,
+    sweep_count: u8,
+    samples_per_sweep: u32,
+    sample_count: u32,
+}
+
+impl FrequencyEnvelope {
+    pub fn new(
+        initial_frequency: u32,
+        sweep_duration: Duration,
+        sweep_direction: bool,
+        sweep_shifts: u8,
+        sample_rate: u32,
+    ) -> Self {
+        let samples_per_sweep = sweep_duration.as_secs_f32() * sample_rate as f32;
+        FrequencyEnvelope {
+            initial_frequency,
+            current_frequency: initial_frequency,
+            sweep_direction,
+            sweep_shifts,
+            sweep_count: 0,
+            samples_per_sweep: samples_per_sweep as u32,
+            sample_count: 0,
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.sweep_count = 0;
+        self.current_frequency = self.initial_frequency;
+        self.sample_count = 0;
+    }
+}
+
+impl Iterator for FrequencyEnvelope {
+    type Item = f32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.sweep_shifts > 0 && self.sample_count >= self.samples_per_sweep {
+            let delta = self.current_frequency / 2u32.pow(self.sweep_shifts as u32);
+            self.current_frequency = if self.sweep_direction {
+                self.current_frequency + delta
+            } else {
+                self.current_frequency - delta
+            };
+            self.sweep_count += 1;
+        }
+        self.sample_count += 1;
+        Some(self.current_frequency as f32)
     }
 }
 
 #[derive(Clone)]
 pub struct ToneNSweep {
-    sweep_time: Duration,
-    last_sweep_time: Instant,
-    sweep_direction: bool,
-    sweep_shifts: u8,
-    sweep_count: u8,
     wave_pattern_duty: u8,
-    sound_length: Option<Duration>,
+    total_sound_samples: Option<u32>,
     volume_envelope: VolumeEnvelope,
-    initial_frequency: u32,
-    current_frequency: u32,
+    frequency_envelope: FrequencyEnvelope,
     initial: bool,
-    initial_time: Instant,
+    current_sample: u32,
     phase: f32,
 }
 
@@ -87,23 +146,29 @@ impl ToneNSweep {
         initial_frequency: u32,
         initial: bool,
     ) -> Self {
+        let total_sound_samples = if let Some(sl) = sound_length {
+            Some((sl.as_secs_f32() * Self::SAMPLE_RATE) as u32)
+        } else {
+            None
+        };
         ToneNSweep {
-            sweep_time,
-            last_sweep_time: Instant::now(),
-            sweep_direction,
-            sweep_shifts,
-            sweep_count: 0,
             wave_pattern_duty,
-            sound_length,
+            total_sound_samples,
             volume_envelope: VolumeEnvelope::new(
                 initial_volume,
                 envelope_direction,
                 envelope_sweeps,
+                Self::SAMPLE_RATE as u32,
             ),
-            initial_frequency,
-            current_frequency: initial_frequency,
+            frequency_envelope: FrequencyEnvelope::new(
+                initial_frequency,
+                sweep_time,
+                sweep_direction,
+                sweep_shifts,
+                Self::SAMPLE_RATE as u32,
+            ),
             initial,
-            initial_time: Instant::now(),
+            current_sample: 0,
             phase: 0.0f32,
         }
     }
@@ -173,26 +238,27 @@ impl ToneNSweep {
         }
 
         ToneNSweep {
-            sweep_time: sweep_time,
-            last_sweep_time: Instant::now(),
-            sweep_direction: sweep_direction,
-            sweep_shifts: sweep_shifts,
-            sweep_count: 0,
             wave_pattern_duty: wave_pattern_duty,
-            sound_length: if repeat {
+            total_sound_samples: if repeat {
                 None
             } else {
-                Some(Duration::from_nanos(sound_length))
+                Some((Duration::from_nanos(sound_length).as_secs_f32() * Self::SAMPLE_RATE) as u32)
             },
             volume_envelope: VolumeEnvelope::new(
                 initial_volume as f32,
                 envelope_direction,
                 envelope_steps,
+                Self::SAMPLE_RATE as u32,
             ),
-            initial_frequency: initial_frequency,
-            current_frequency: initial_frequency,
+            frequency_envelope: FrequencyEnvelope::new(
+                initial_frequency,
+                sweep_time,
+                sweep_direction,
+                sweep_shifts,
+                Self::SAMPLE_RATE as u32,
+            ),
             initial: initial,
-            initial_time: Instant::now(),
+            current_sample: 0,
             phase: 0.0f32,
         }
     }
@@ -240,26 +306,27 @@ impl ToneNSweep {
         }
 
         ToneNSweep {
-            sweep_time: Duration::ZERO,
-            last_sweep_time: Instant::now(),
-            sweep_direction: false,
-            sweep_shifts: 0,
-            sweep_count: 0,
             wave_pattern_duty: wave_pattern_duty,
-            sound_length: if repeat {
+            total_sound_samples: if repeat {
                 None
             } else {
-                Some(Duration::from_nanos(sound_length))
+                Some((Duration::from_nanos(sound_length).as_secs_f32() * Self::SAMPLE_RATE) as u32)
             },
             volume_envelope: VolumeEnvelope::new(
                 initial_volume as f32,
                 envelope_direction,
                 envelope_steps,
+                Self::SAMPLE_RATE as u32,
             ),
-            initial_frequency: initial_frequency,
-            current_frequency: initial_frequency,
+            frequency_envelope: FrequencyEnvelope::new(
+                initial_frequency,
+                Duration::ZERO,
+                false,
+                0,
+                Self::SAMPLE_RATE as u32,
+            ),
             initial: initial,
-            initial_time: Instant::now(),
+            current_sample: 0,
             phase: 0.0f32,
         }
     }
@@ -283,39 +350,20 @@ impl Iterator for ToneNSweep {
     type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(length) = self.sound_length {
-            if self.initial_time.elapsed() > length {
+        if let Some(total_samples) = self.total_sound_samples {
+            if self.current_sample >= total_samples {
                 return None;
             }
         }
-        if self.sweep_shifts > 0 && self.last_sweep_time.elapsed() > self.sweep_time {
-            let delta = self.current_frequency / 2u32.pow(self.sweep_shifts as u32);
-            self.current_frequency = if self.sweep_direction {
-                self.current_frequency + delta
-            } else {
-                self.current_frequency - delta
-            };
-            self.last_sweep_time = Instant::now();
-            self.sweep_count += 1;
-        }
-
-        if self.sweep_count > self.sweep_shifts {
-            if self.sound_length.is_none() {
-                self.sweep_count = 0;
-                self.current_frequency = self.initial_frequency;
-                self.last_sweep_time = Instant::now();
-                self.volume_envelope.reset();
-            } else {
-                return None;
-            }
-        }
-
+        self.current_sample += 1;
+        let up_volume = self.volume_envelope.next().unwrap_or(0.0f32);
+        let current_frequency = self.frequency_envelope.next().unwrap_or(0.0f32);
         let res = if self.phase < self.wave_duty() {
-            self.volume_envelope.get_current_volume()
+            up_volume
         } else {
             0.0f32
         };
-        let phase_step = self.current_frequency as f32 / Self::SAMPLE_RATE;
+        let phase_step = current_frequency / Self::SAMPLE_RATE;
         self.phase = (self.phase + phase_step).rem_euclid(1.0f32);
         Some(res)
     }
@@ -335,18 +383,24 @@ impl Source for ToneNSweep {
     }
 
     fn total_duration(&self) -> Option<Duration> {
-        self.sound_length
+        if let Some(total_samples) = self.total_sound_samples {
+            Some(Duration::from_secs_f32(
+                total_samples as f32 / Self::SAMPLE_RATE,
+            ))
+        } else {
+            None
+        }
     }
 }
 
 #[derive(Clone)]
 pub struct WhiteNoise {
-    sound_length: Option<Duration>,
+    total_sound_sampes: Option<u32>,
+    current_sample: u32,
     volume_envelope: VolumeEnvelope,
     half_width: bool,
     lfsr: u16,
     initial: bool,
-    initial_time: Instant,
     phase: f32,
     frequency: f32,
 }
@@ -364,16 +418,21 @@ impl WhiteNoise {
         initial: bool,
     ) -> Self {
         WhiteNoise {
-            sound_length,
+            total_sound_sampes: if let Some(sl) = sound_length {
+                Some((sl.as_secs_f32() * Self::SAMPLE_RATE) as u32)
+            } else {
+                None
+            },
+            current_sample: 0,
             volume_envelope: VolumeEnvelope::new(
                 initial_volume,
                 envelope_direction,
                 envelope_sweeps,
+                Self::SAMPLE_RATE as u32,
             ),
             half_width,
             lfsr: 0x0,
             initial,
-            initial_time: Instant::now(),
             phase: 0.0f32,
             frequency,
         }
@@ -425,20 +484,21 @@ impl WhiteNoise {
         }
 
         WhiteNoise {
-            sound_length: if repeat {
+            total_sound_sampes: if repeat {
                 None
             } else {
-                Some(Duration::from_nanos(sound_length))
+                Some((Duration::from_nanos(sound_length).as_secs_f32() * Self::SAMPLE_RATE) as u32)
             },
+            current_sample: 0,
             volume_envelope: VolumeEnvelope::new(
                 initial_volume as f32,
                 envelope_direction,
                 envelope_steps,
+                Self::SAMPLE_RATE as u32,
             ),
             half_width: half_width,
             lfsr: 0,
             initial: initial,
-            initial_time: Instant::now(),
             phase: 0.0f32,
             frequency: frequency,
         }
@@ -453,11 +513,14 @@ impl Iterator for WhiteNoise {
     type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(length) = self.sound_length {
-            if self.initial_time.elapsed() > length {
+        if let Some(total_samples) = self.total_sound_sampes {
+            if self.current_sample >= total_samples {
                 return None;
             }
         }
+        self.current_sample += 1;
+
+        let up_volume = self.volume_envelope.next().unwrap_or(0.0f32);
 
         let phase_step = self.frequency as f32 / Self::SAMPLE_RATE;
         self.phase = self.phase + phase_step;
@@ -472,7 +535,7 @@ impl Iterator for WhiteNoise {
             self.lfsr >>= 1;
         }
         self.phase = self.phase.rem_euclid(1.0f32);
-        Some((self.lfsr & 0x0001) as f32 * self.volume_envelope.get_current_volume())
+        Some((self.lfsr & 0x0001) as f32 * up_volume)
     }
 }
 
@@ -490,7 +553,13 @@ impl Source for WhiteNoise {
     }
 
     fn total_duration(&self) -> Option<Duration> {
-        self.sound_length
+        if let Some(total_samples) = self.total_sound_sampes {
+            Some(Duration::from_secs_f32(
+                total_samples as f32 / Self::SAMPLE_RATE,
+            ))
+        } else {
+            None
+        }
     }
 }
 

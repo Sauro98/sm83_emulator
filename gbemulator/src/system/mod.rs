@@ -1,5 +1,4 @@
 pub mod clock;
-pub mod controller;
 pub mod controllers;
 pub mod ram;
 pub mod sm83;
