@@ -56,7 +56,7 @@ pub const SET_0_HL: u8 = 0xC6;
 #[test]
 fn test_ldrn() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_B_N).unwrap(); // LD B,n    // PC = 0 opcode
     ram.set_at(0x0001, 0xAB).unwrap(); // n = 0xAB  // PC = 1 value
     ram.set_at(0x0002, 0xCD).unwrap(); //           // PC = 2 dummy value
@@ -78,7 +78,7 @@ fn test_ldrn() {
 #[test]
 fn test_ldr_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_C_N).unwrap(); // LD C,n    // PC = 0 opcode
     ram.set_at(0x0001, 0xAB).unwrap(); // n = 0xAB  // PC = 1 value
     ram.set_at(0x0002, LD_B_C).unwrap(); // LD B,C    // PC = 2 opcode
@@ -109,7 +109,7 @@ fn test_ldr_r() {
 #[test]
 fn test_ldr_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // LD HL,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0x0A).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
@@ -141,7 +141,7 @@ fn test_ldr_hl() {
 #[test]
 fn test_ldhlr() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // LD HL,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0x0A).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
@@ -178,7 +178,7 @@ fn test_ldhlr() {
 #[test]
 fn test_ldhln() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // LD HL,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0x0A).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
@@ -211,7 +211,7 @@ fn test_ldhln() {
 #[test]
 fn test_ldabc() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_BC_NN).unwrap(); // LD BC,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
@@ -241,7 +241,7 @@ fn test_ldabc() {
 #[test]
 fn test_ldbca() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_BC_NN).unwrap(); // LD BC,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
@@ -283,7 +283,7 @@ fn test_ldbca() {
 #[test]
 fn test_ldade() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_DE_NN).unwrap(); // LD DE,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
@@ -313,7 +313,7 @@ fn test_ldade() {
 #[test]
 fn test_lddea() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_DE_NN).unwrap(); // LD DE,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
@@ -355,7 +355,7 @@ fn test_lddea() {
 #[test]
 fn test_ldann() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_A_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
@@ -372,7 +372,7 @@ fn test_ldann() {
 #[test]
 fn test_ldnn_a() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_A_N); // PC = 0 opcode
     ram.set_at(0x0001, 0xEE); // n = 0xEE
     ram.set_at(0x0002, LD_NN_A).unwrap(); // PC = 2 opcode
@@ -393,7 +393,7 @@ fn test_ldnn_a() {
 #[test]
 fn test_ldhac() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_C_N); // PC = 0 opcode
     ram.set_at(0x0001, 0xEE); // n = 0xEE
     ram.set_at(0x0002, LDH_A_C).unwrap(); // PC = 2 opcode
@@ -414,7 +414,7 @@ fn test_ldhac() {
 #[test]
 fn test_ldhca() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_C_N); // PC = 0 opcode
     ram.set_at(0x0001, 0xEE); // n = 0xEE
     ram.set_at(0x0002, LD_A_N); // PC = 2 opcode
@@ -440,7 +440,7 @@ fn test_ldhca() {
 #[test]
 fn test_ldhan() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LDH_A_N).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xEE).unwrap(); // value
     ram.set_at(0x0002, 0xCD).unwrap(); // PC = 2 dummy value
@@ -457,7 +457,7 @@ fn test_ldhan() {
 #[test]
 fn test_ldhn_a() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_A_N).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xBB).unwrap(); // value
     ram.set_at(0x0002, LDH_N_A).unwrap(); // PC = 2 opcode
@@ -478,7 +478,7 @@ fn test_ldhn_a() {
 #[test]
 fn test_ldahlm() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // value msb
@@ -501,7 +501,7 @@ fn test_ldahlm() {
 #[test]
 fn test_ldhlm_a() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // value msb
@@ -530,7 +530,7 @@ fn test_ldhlm_a() {
 #[test]
 fn test_ldahlp() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // value msb
@@ -553,7 +553,7 @@ fn test_ldahlp() {
 #[test]
 fn test_ldhlp_a() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // value msb
@@ -582,7 +582,7 @@ fn test_ldhlp_a() {
 #[test]
 fn test_ldrrnn() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // LD HL,nn  // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // n = 0xAA  // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // n = 0x00  // PC = 2 value msb
@@ -603,7 +603,7 @@ fn test_ldrrnn() {
 #[test]
 fn test_ldsphl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // PC = 2 value msb
@@ -626,7 +626,7 @@ fn test_ldsphl() {
 #[test]
 fn test_ldnn_sp() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // PC = 1 value lsb
     ram.set_at(0x0002, 0x02).unwrap(); // PC = 2 value msb
@@ -662,7 +662,7 @@ fn test_ldnn_sp() {
 #[test]
 fn test_push_rr() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // PC = 2 value msb
@@ -696,7 +696,7 @@ fn test_push_rr() {
 #[test]
 fn test_pop_rr() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // PC = 2 value msb
@@ -728,7 +728,7 @@ fn test_pop_rr() {
 #[test]
 fn test_ldhl_spe() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, LD_HL_NN).unwrap(); // PC = 0 opcode
     ram.set_at(0x0001, 0xAA).unwrap(); // PC = 1 value lsb
     ram.set_at(0x0002, 0x00).unwrap(); // PC = 2 value msb
@@ -807,7 +807,7 @@ fn test_load_from_snapshot() {
 #[test]
 fn test_add_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, ADD_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(3).with_b(4);
@@ -821,7 +821,7 @@ fn test_add_r() {
     assert_eq!(cpu.get_register(RegisterName::F), 0);
     assert_eq!(cpu.cycle_count, 1);
 
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, ADD_C).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(15).with_c(1);
@@ -838,7 +838,7 @@ fn test_add_r() {
 #[test]
 fn test_add_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, ADD_HL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0xABCD, 0x05).unwrap();
@@ -856,7 +856,7 @@ fn test_add_hl() {
 #[test]
 fn test_add_n() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, ADD_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -874,7 +874,7 @@ fn test_add_n() {
 #[test]
 fn test_adc_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, ADC_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(3).with_b(4).with_f(0x10);
@@ -888,7 +888,7 @@ fn test_adc_r() {
     assert_eq!(cpu.get_register(RegisterName::F), 0);
     assert_eq!(cpu.cycle_count, 1);
 
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, ADC_C).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(15).with_c(1).with_f(0x00);
@@ -905,7 +905,7 @@ fn test_adc_r() {
 #[test]
 fn test_adc_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, ADC_HL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0xABCD, 0x05).unwrap();
@@ -923,7 +923,7 @@ fn test_adc_hl() {
 #[test]
 fn test_adc_n() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, ADC_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -941,7 +941,7 @@ fn test_adc_n() {
 #[test]
 fn test_sub_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, SUB_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(4).with_b(3);
@@ -958,7 +958,7 @@ fn test_sub_r() {
 #[test]
 fn test_sub_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, SUB_HL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0xABCD, 0x05).unwrap();
@@ -975,7 +975,7 @@ fn test_sub_hl() {
 #[test]
 fn test_sub_n() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, SUB_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -992,7 +992,7 @@ fn test_sub_n() {
 #[test]
 fn test_sbc_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, SBC_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(16).with_b(4).with_f(0x10);
@@ -1008,7 +1008,7 @@ fn test_sbc_r() {
 #[test]
 fn test_sbc_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, SBC_HL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0xABCD, 0x05).unwrap();
@@ -1025,7 +1025,7 @@ fn test_sbc_hl() {
 #[test]
 fn test_sbc_n() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, SBC_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1042,7 +1042,7 @@ fn test_sbc_n() {
 #[test]
 fn test_cp_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CP_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(4).with_b(3);
@@ -1059,7 +1059,7 @@ fn test_cp_r() {
 #[test]
 fn test_cp_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CP_HL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0xABCD, 0x05).unwrap();
@@ -1077,7 +1077,7 @@ fn test_cp_hl() {
 #[test]
 fn test_cp_n() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CP_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1095,7 +1095,7 @@ fn test_cp_n() {
 #[test]
 fn test_inc_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, INC_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_b(1);
@@ -1110,7 +1110,7 @@ fn test_inc_r() {
     assert_eq!(cpu.cycle_count, 1);
 
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, INC_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_b(15);
@@ -1127,7 +1127,7 @@ fn test_inc_r() {
 #[test]
 fn test_inc_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, INC_HL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0xEEEE, 11).unwrap();
@@ -1145,7 +1145,7 @@ fn test_inc_hl() {
 #[test]
 fn test_dec_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, DEC_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_b(1);
@@ -1162,7 +1162,7 @@ fn test_dec_r() {
 #[test]
 fn test_dec_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, DEC_HL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0xEEEE, 11).unwrap();
@@ -1180,7 +1180,7 @@ fn test_dec_hl() {
 #[test]
 fn test_and_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, AND_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(0b0010).with_b(0b0110);
@@ -1197,7 +1197,7 @@ fn test_and_r() {
 #[test]
 fn test_and_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, AND_HL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0xABCD, 0x05).unwrap();
@@ -1214,7 +1214,7 @@ fn test_and_hl() {
 #[test]
 fn test_and_n() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, AND_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1231,7 +1231,7 @@ fn test_and_n() {
 #[test]
 fn test_or_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, OR_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(0b0010).with_b(0b0110);
@@ -1248,7 +1248,7 @@ fn test_or_r() {
 #[test]
 fn test_or_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, OR_HL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0xABCD, 0x05).unwrap();
@@ -1265,7 +1265,7 @@ fn test_or_hl() {
 #[test]
 fn test_or_n() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, OR_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1282,7 +1282,7 @@ fn test_or_n() {
 #[test]
 fn test_xor_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, XOR_B).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(0b0010).with_b(0b0110);
@@ -1299,7 +1299,7 @@ fn test_xor_r() {
 #[test]
 fn test_xor_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, XOR_HL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0xABCD, 0x05).unwrap();
@@ -1316,7 +1316,7 @@ fn test_xor_hl() {
 #[test]
 fn test_xor_n() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, XOR_N).unwrap();
     ram.set_at(0x0001, 0x05).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1333,7 +1333,7 @@ fn test_xor_n() {
 #[test]
 fn test_ccf() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CCF).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_f(0xF0);
@@ -1369,7 +1369,7 @@ fn test_ccf() {
 #[test]
 fn test_scf() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, SCF).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_f(0xF0);
@@ -1405,7 +1405,7 @@ fn test_scf() {
 #[test]
 fn test_daa() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, DAA).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(0x7D).with_f(0x00);
@@ -1422,7 +1422,7 @@ fn test_daa() {
 #[test]
 fn test_cpl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CPL).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(0b1010_0101).with_f(0x00);
@@ -1439,7 +1439,7 @@ fn test_cpl() {
 #[test]
 fn test_inc_rr() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, INC_BC).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_bc(15);
@@ -1455,7 +1455,7 @@ fn test_inc_rr() {
 #[test]
 fn test_dec_rr() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, DEC_BC).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_bc(15);
@@ -1471,7 +1471,7 @@ fn test_dec_rr() {
 #[test]
 fn test_add_hl_rr() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, ADD_HL_BC).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_hl(0x00FF).with_bc(0x0101);
@@ -1487,7 +1487,7 @@ fn test_add_hl_rr() {
 #[test]
 fn test_add_spe() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, ADD_SP_E).unwrap();
     ram.set_at(0x0001, 0x85).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1504,7 +1504,7 @@ fn test_add_spe() {
 #[test]
 fn test_rlca() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, RLCA).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(0b1000_0000);
@@ -1521,7 +1521,7 @@ fn test_rlca() {
 #[test]
 fn test_rla() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, RLA).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(0b1000_0000);
@@ -1538,7 +1538,7 @@ fn test_rla() {
 #[test]
 fn test_rrca() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, RRCA).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(0b0000_0001);
@@ -1555,7 +1555,7 @@ fn test_rrca() {
 #[test]
 fn test_rra() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, RRA).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_a(0b0000_0001);
@@ -1572,7 +1572,7 @@ fn test_rra() {
 #[test]
 fn test_rlc_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, RLC_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1590,7 +1590,7 @@ fn test_rlc_r() {
 #[test]
 fn test_rlc_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, RLC_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1609,7 +1609,7 @@ fn test_rlc_hl() {
 #[test]
 fn test_rl_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, RL_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1627,7 +1627,7 @@ fn test_rl_r() {
 #[test]
 fn test_rl_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, RL_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1646,7 +1646,7 @@ fn test_rl_hl() {
 #[test]
 fn test_rrc_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, RRC_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1664,7 +1664,7 @@ fn test_rrc_r() {
 #[test]
 fn test_rrc_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, RRC_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1683,7 +1683,7 @@ fn test_rrc_hl() {
 #[test]
 fn test_rr_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, RR_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1701,7 +1701,7 @@ fn test_rr_r() {
 #[test]
 fn test_rr_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, RR_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1720,7 +1720,7 @@ fn test_rr_hl() {
 #[test]
 fn test_sla_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, SLA_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1738,7 +1738,7 @@ fn test_sla_r() {
 #[test]
 fn test_sla_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, SLA_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1757,7 +1757,7 @@ fn test_sla_hl() {
 #[test]
 fn test_sra_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, SRA_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1775,7 +1775,7 @@ fn test_sra_r() {
 #[test]
 fn test_sra_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, SRA_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1794,7 +1794,7 @@ fn test_sra_hl() {
 #[test]
 fn test_swap_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, SWAP_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1811,7 +1811,7 @@ fn test_swap_r() {
 #[test]
 fn test_swap_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, SWAP_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1829,7 +1829,7 @@ fn test_swap_hl() {
 #[test]
 fn test_srl_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, SRL_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1847,7 +1847,7 @@ fn test_srl_r() {
 #[test]
 fn test_srl_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, SRL_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1866,7 +1866,7 @@ fn test_srl_hl() {
 #[test]
 fn test_bit_b_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, BIT_0_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1895,7 +1895,7 @@ fn test_bit_b_r() {
 #[test]
 fn test_bit_b_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, BIT_0_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1913,7 +1913,7 @@ fn test_bit_b_hl() {
 #[test]
 fn test_res_b_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, RES_0_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1930,7 +1930,7 @@ fn test_res_b_r() {
 #[test]
 fn test_res_b_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, RES_0_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1948,7 +1948,7 @@ fn test_res_b_hl() {
 #[test]
 fn test_set_b_r() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, SET_0_B).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1965,7 +1965,7 @@ fn test_set_b_r() {
 #[test]
 fn test_set_b_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CB_PREFIX).unwrap();
     ram.set_at(0x0001, SET_0_HL).unwrap();
     ram.set_at(0x0002, 0xCD).unwrap();
@@ -1983,7 +1983,7 @@ fn test_set_b_hl() {
 #[test]
 fn test_jp_nn() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, JP_NN).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0x0002, 0xAB).unwrap();
@@ -2000,7 +2000,7 @@ fn test_jp_nn() {
 #[test]
 fn test_jp_hl() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, JP_HL).unwrap();
     ram.set_at(0xABCD, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_hl(0xABCD);
@@ -2015,7 +2015,7 @@ fn test_jp_hl() {
 #[test]
 fn test_jp_cc_nn() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, JP_NZ_NN).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     ram.set_at(0x0002, 0xAB).unwrap();
@@ -2042,7 +2042,7 @@ fn test_jp_cc_nn() {
 #[test]
 fn test_jr_e() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0008, JR_E).unwrap();
     ram.set_at(0x0009, 0xFD).unwrap(); // -3 in 2's complement
     ram.set_at(0x0007, 0xCD).unwrap();
@@ -2058,7 +2058,7 @@ fn test_jr_e() {
 #[test]
 fn test_jr_cc_e() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0008, JR_NZ_E).unwrap();
     ram.set_at(0x0009, 0xFD).unwrap(); // -3 in 2's complement
     ram.set_at(0x0007, 0xCD).unwrap();
@@ -2084,7 +2084,7 @@ fn test_jr_cc_e() {
 #[test]
 fn test_call_nn() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CALL_NN).unwrap();
     ram.set_at(0x0001, 0xBB).unwrap();
     ram.set_at(0x0002, 0xAA).unwrap();
@@ -2104,7 +2104,7 @@ fn test_call_nn() {
 #[test]
 fn test_call_cc_nn() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CALL_NZ_NN).unwrap();
     ram.set_at(0x0001, 0xBB).unwrap();
     ram.set_at(0x0002, 0xAA).unwrap();
@@ -2135,7 +2135,7 @@ fn test_call_cc_nn() {
 #[test]
 fn test_ret() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CALL_NN).unwrap();
     ram.set_at(0x0001, 0xBB).unwrap();
     ram.set_at(0x0002, 0xAA).unwrap();
@@ -2161,7 +2161,7 @@ fn test_ret() {
 #[test]
 fn test_ret_cc() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CALL_NN).unwrap();
     ram.set_at(0x0001, 0xBB).unwrap();
     ram.set_at(0x0002, 0xAA).unwrap();
@@ -2203,7 +2203,7 @@ fn test_ret_cc() {
 #[test]
 fn test_reti() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, CALL_NN).unwrap();
     ram.set_at(0x0001, 0xBB).unwrap();
     ram.set_at(0x0002, 0xAA).unwrap();
@@ -2230,7 +2230,7 @@ fn test_reti() {
 #[test]
 fn test_rst_n() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, RST_18).unwrap();
     ram.set_at(0x0001, 0xCC).unwrap();
     ram.set_at(0x0018, 0xCD).unwrap();
@@ -2249,7 +2249,7 @@ fn test_rst_n() {
 #[test]
 fn test_di() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, DI).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_ime(true);
@@ -2265,7 +2265,7 @@ fn test_di() {
 #[test]
 fn test_ei() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x0000, EI).unwrap();
     ram.set_at(0x0001, 0xCD).unwrap();
     let snapshot = SM83Snapshot::new().with_ime(false);
@@ -2281,7 +2281,7 @@ fn test_ei() {
 #[test]
 fn test_fetch_execute_overlap() {
     let frequency = 1. * 1e6;
-    let mut ram = ram::RAM::new();
+    let mut ram = ram::RAM::new(None);
     ram.set_at(0x1000, INC_A).unwrap();
     ram.set_at(0x1001, LDH_N_A).unwrap();
     ram.set_at(0x1003, RST_08).unwrap();

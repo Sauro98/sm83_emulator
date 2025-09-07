@@ -10,6 +10,8 @@ use std::sync::{
     Arc, Mutex,
 };
 
+use crate::system::ram::mapping_chip::DynamicMappingChip;
+
 fn format_frequency(frequency: f32) -> String {
     if frequency < 1e3 {
         return format!("{:.2} Hz", frequency);
@@ -31,19 +33,21 @@ pub struct System {
     bootlock_register: Arc<Mutex<ram::BootLockMemoryRegister>>,
     lcd_controller: Arc<Mutex<controllers::lcd_controller::LCDController>>,
     sound_controller: Arc<Mutex<controllers::sound_controller::SoundController>>,
+    should_reload_cartridge: bool,
 }
 
 impl System {
-    pub fn new(clock_frequency: f32) -> System {
+    pub fn new(clock_frequency: f32, dynamic_chip: Option<DynamicMappingChip>) -> System {
         return System {
             cpu: Arc::new(Mutex::new(sm83::SM83::new(clock_frequency))),
-            ram: Arc::new(Mutex::new(ram::RAM::new())),
+            ram: Arc::new(Mutex::new(ram::RAM::new(dynamic_chip))),
             boot_rom: ram::BootRom::new(),
             bootlock_register: Arc::new(Mutex::new(ram::BootLockMemoryRegister::new())),
             lcd_controller: Arc::new(Mutex::new(controllers::lcd_controller::LCDController::new())),
             sound_controller: Arc::new(Mutex::new(
                 controllers::sound_controller::SoundController::new(),
             )),
+            should_reload_cartridge: false,
         };
     }
 
@@ -64,6 +68,7 @@ impl System {
             sound_controller: Arc::new(Mutex::new(
                 controllers::sound_controller::SoundController::new(),
             )),
+            should_reload_cartridge: false,
         };
     }
 
@@ -80,7 +85,7 @@ impl System {
 
     pub fn run(mut self, n_iter: usize) -> Self {
         self.boot();
-        let cpu_ram_ref = self.ram.clone();
+        let cpu_ram_ref: Arc<Mutex<ram::RAM>> = self.ram.clone();
         let bootlocker_ref = self.bootlock_register.clone();
         let cpu_ref = self.cpu.clone();
         let lcd_ram_ref = self.ram.clone();
@@ -101,15 +106,17 @@ impl System {
                     println!("Performing DMA");
                     ram.reset_dma_request();
                 }
-                if cpu.get_register(sm83::registers::RegisterName::PC) >= 0xFF {
-                    println!("boot rom ended");
-                    break;
-                }
 
                 let mut blr = bootlocker_ref.lock().unwrap();
                 blr.read_from_ram(&ram);
-                if blr.is_unlocked() {
+                if blr.is_unlocked() && self.should_reload_cartridge {
                     println!("bootlock unlocked");
+                    self.should_reload_cartridge = false;
+                    ram.load_base_rom_bank();
+                }
+
+                if cpu.get_register(sm83::registers::RegisterName::PC) == 0xFF {
+                    println!("boot rom ended");
                 }
             }
             loop_finished_ref.store(true, Ordering::Relaxed);
@@ -196,13 +203,15 @@ impl System {
     pub fn boot(&mut self) {
         let mut ram = self.ram.lock().unwrap();
         let mut cpu = self.cpu.lock().unwrap();
-        self.bootlock_register.lock().unwrap().lock();
+        ram.load_base_rom_bank();
+        // override memory from 0000 to 00FF with boot rom
         self.boot_rom.load_in_ram(&mut ram);
-        self.bootlock_register.lock().unwrap().load_in_ram(&mut ram);
-        let fakerom = ram::FakeRom::new();
-        fakerom.load_in_ram(&mut ram);
-        let fake_checksum = ram::FakeChecksum::new();
-        fake_checksum.load_in_ram(&mut ram);
+        {
+            let mut bootlock_register_ref = self.bootlock_register.lock().unwrap();
+            bootlock_register_ref.lock();
+            bootlock_register_ref.load_in_ram(&mut ram);
+            self.should_reload_cartridge = true;
+        }
         cpu.reset(&ram);
     }
 }

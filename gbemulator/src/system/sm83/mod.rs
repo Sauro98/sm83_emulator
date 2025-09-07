@@ -244,7 +244,11 @@ impl SM83 {
 
         match op_code {
             None => {
-                panic!("Unrecognized OP CODE {:x}", ir);
+                panic!(
+                    "Unrecognized OP CODE {:x} at PC {:x}",
+                    ir,
+                    self.register_file.get_pc()
+                );
             }
             Some(OpCode::LD_HL_n) => {
                 // read value from ram

@@ -1,11 +1,14 @@
 pub mod lcd_registers;
+pub mod mapping_chip;
 pub mod sound_registers;
 
 const BOOT_ROM_END: u16 = 0x00FF;
 const BOOTLOCKER_ADDRESS: u16 = 0xFF50;
-const BOOTLOCKER_LOCKED: u8 = 0x01;
-const BOOTLOCKER_UNLOCKED: u8 = 0x00;
+const BOOTLOCKER_LOCKED: u8 = 0x00;
+const BOOTLOCKER_UNLOCKED: u8 = 0x01;
 const DMA_ADDRESS: u16 = 0xFF46;
+
+use mapping_chip::MappingChip;
 
 macro_rules! default_memory_register_trait_impl {
     ($name:ident,$reset_value:expr) => {
@@ -47,11 +50,14 @@ macro_rules! default_nonimplemented_memory_register_trait_impl {
 }
 pub(crate) use default_nonimplemented_memory_register_trait_impl;
 
+use crate::system::ram::mapping_chip::DynamicMappingChip;
+
 pub struct RAM {
     data: std::vec::Vec<u8>,
     #[allow(dead_code)]
     capacity: usize,
     dma_requested: bool,
+    mapping_chip: DynamicMappingChip,
 }
 
 impl Clone for RAM {
@@ -60,18 +66,25 @@ impl Clone for RAM {
             data: self.data.clone(),
             capacity: self.capacity.clone(),
             dma_requested: self.dma_requested.clone(),
+            mapping_chip: self.mapping_chip.clone(),
         }
     }
 }
 
 impl RAM {
-    pub fn new() -> RAM {
+    pub fn new(dynamic_chip: Option<DynamicMappingChip>) -> RAM {
+        let dynamic_chip = if let Some(dc) = dynamic_chip {
+            dc
+        } else {
+            DynamicMappingChip::new()
+        };
         let capacity = u16::MAX as usize + 1;
         let data = vec![0; capacity];
         RAM {
             data: data,
             capacity: capacity,
             dma_requested: false,
+            mapping_chip: dynamic_chip,
         }
     }
 
@@ -80,18 +93,24 @@ impl RAM {
     }
 
     pub fn set_at(&mut self, address: u16, value: u8) -> Option<()> {
-        if self.data.get(BOOTLOCKER_ADDRESS as usize) == Some(&BOOTLOCKER_LOCKED) {
-            // if bootlock is set
-            if address <= BOOT_ROM_END {
-                return None; // cannot set boot memory if lock is on
-            }
-        }
         if address == DMA_ADDRESS {
             self.dma_requested = true;
         }
         match self.data.get_mut(address as usize) {
             Some(x) => *x = value,
             None => return None,
+        }
+        if self.data[BOOTLOCKER_ADDRESS as usize] == BOOTLOCKER_UNLOCKED {
+            if self.mapping_chip.is_selecting_mode(address, value) {
+            } else if self.mapping_chip.is_selecting_chip_rom(address, value) {
+                let bank = self.mapping_chip.get_selected_rom_bank();
+                self.data[(bank.address as usize)..(bank.address as usize + (16 * 1024))]
+                    .copy_from_slice(&bank.contents);
+            } else if self.mapping_chip.is_selecting_chip_ram(address, value) {
+                let bank = self.mapping_chip.get_selected_ram_bank();
+                self.data[(bank.address as usize)..(bank.address as usize + (16 * 1024))]
+                    .copy_from_slice(&bank.contents);
+            }
         }
         Some(())
     }
@@ -121,6 +140,12 @@ impl RAM {
             result[i] = *self.data.get(adjusted_offset + i).unwrap();
         }
         result
+    }
+
+    pub fn load_base_rom_bank(&mut self) {
+        let bank = self.mapping_chip.get_base_rom_bank();
+        self.data[(bank.address as usize)..(bank.address as usize + (16 * 1024))]
+            .copy_from_slice(&bank.contents);
     }
 }
 
@@ -220,57 +245,3 @@ impl MemoryRegister for BootRom {
         unimplemented!()
     }
 }
-
-pub struct FakeRom {
-    address: u16,
-    contents: Vec<u8>,
-}
-
-impl FakeRom {
-    pub fn new() -> Self {
-        FakeRom {
-            address: 0x0104,
-            contents: vec![
-                0xCE, 0xED, 0x66, 0x66, 0xCC, 0x0D, 0x00, 0x0B, 0x03, 0x73, 0x00, 0x83, 0x00, 0x0C,
-                0x00, 0x0D, 0x00, 0x08, 0x11, 0x1F, 0x88, 0x89, 0x00, 0x0E, 0xDC, 0xCC, 0x6E, 0xE6,
-                0xDD, 0xDD, 0xD9, 0x99, 0xBB, 0xBB, 0x67, 0x63, 0x6E, 0x0E, 0xEC, 0xCC, 0xDD, 0xDC,
-                0x99, 0x9F, 0xBB, 0xB9, 0x33, 0x3E,
-            ],
-        }
-    }
-}
-
-impl MemoryRegister for FakeRom {
-    fn reset(&mut self) {
-        unimplemented!()
-    }
-
-    fn load_in_ram(&self, ram: &mut RAM) -> Option<()> {
-        for i in 0..self.contents.len() {
-            ram.set_at(self.address + i as u16, self.contents[i]);
-        }
-        Some(())
-    }
-
-    default_nonimplemented_memory_register_trait_impl!();
-
-    fn read_from_ram(&mut self, _: &RAM) {
-        unimplemented!()
-    }
-}
-
-pub struct FakeChecksum {
-    address: u16,
-    value: u8,
-}
-
-impl FakeChecksum {
-    pub fn new() -> Self {
-        FakeChecksum {
-            address: 0x014d,
-            value: 0xE7,
-        }
-    }
-}
-
-default_memory_register_trait_impl!(FakeChecksum, 0xE7);
