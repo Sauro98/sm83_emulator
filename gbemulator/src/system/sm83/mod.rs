@@ -982,10 +982,12 @@ impl SM83 {
             Some(OpCode::DI) => {
                 self.ime = false;
                 self.fetch_cycle(ram);
+                println!("disabling interrupts");
             }
             Some(OpCode::EI) => {
                 self.fetch_cycle(ram);
                 self.ime = true;
+                println!("enabling interrupts");
             }
             Some(OpCode::HALT) => {
                 self.fetch_cycle(ram);
@@ -999,6 +1001,29 @@ impl SM83 {
             }
         }
         self.tick_clock();
+        if self.ime {
+            self.check_interrupts(ram);
+        }
+    }
+
+    pub fn check_interrupts(&mut self, ram: &mut RAM) {
+        let interrupts = ram.get_at(0xFFFF).unwrap() & ram.get_at(0xFF0F).unwrap();
+        if interrupts == 0 {
+            return;
+        }
+        if interrupts & 0x01 == 0x01 {
+            panic!("unhandled VBLANK interrupt");
+        }
+        if interrupts & 0x02 == 0x02 {
+            panic!("unhandled LCD STAT interrupt");
+        }
+        if interrupts & 0x04 == 0x04 {
+            panic!("unhandled SERIAL interrupt");
+        }
+        if interrupts & 0x08 == 0x08 {
+            panic!("unhandled JOYPAD interrupt");
+        }
+        panic!("unknown interrupt");
     }
 
     pub fn fps(&self) -> f32 {

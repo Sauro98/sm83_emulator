@@ -1,3 +1,9 @@
+use std::{
+    fs::File,
+    io::{BufReader, Read},
+    str::FromStr,
+};
+
 pub struct MemoryBank {
     pub address: u16,
     pub contents: [u8; 16 * 1024],
@@ -12,18 +18,18 @@ impl MemoryBank {
     }
 }
 
-pub trait MappingChip: Clone + Copy {
+pub trait MappingChip: Clone {
     fn is_selecting_chip_rom(&mut self, address: u16, value: u8) -> bool;
     fn is_selecting_chip_ram(&mut self, address: u16, value: u8) -> bool;
     fn get_selected_rom_bank(&self) -> MemoryBank;
     fn get_base_rom_bank(&self) -> MemoryBank;
     fn get_selected_ram_bank(&self) -> MemoryBank;
-    fn is_ram_enabled(&self) -> bool;
+    fn is_ram_enabled(&mut self, address: u16, value: u8) -> bool;
     fn is_selecting_mode(&mut self, address: u16, value: u8) -> bool;
     fn new() -> Self;
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct FakeChip {}
 
 impl MappingChip for FakeChip {
@@ -65,7 +71,7 @@ impl MappingChip for FakeChip {
         MemoryBank::new(0x0000)
     }
 
-    fn is_ram_enabled(&self) -> bool {
+    fn is_ram_enabled(&mut self, address: u16, value: u8) -> bool {
         false
     }
 
@@ -78,18 +84,87 @@ impl MappingChip for FakeChip {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum MemoryMode {
     ROM,
     RAM,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
+pub struct NoChip {
+    rom_path: String,
+}
+
+impl NoChip {
+    pub fn from_rom_path(rom_path: &str) -> Self {
+        NoChip {
+            rom_path: String::from_str(rom_path).unwrap(),
+        }
+    }
+    pub fn read_rom_contents(&self) -> Vec<u8> {
+        let buffer = BufReader::new(File::open(self.rom_path.as_str()).unwrap());
+        let bytes: Vec<u8> = buffer.bytes().map(|x| x.unwrap()).collect();
+        bytes
+    }
+}
+
+impl MappingChip for NoChip {
+    fn is_selecting_chip_rom(&mut self, address: u16, value: u8) -> bool {
+        false
+    }
+
+    fn is_selecting_chip_ram(&mut self, address: u16, value: u8) -> bool {
+        false
+    }
+
+    fn get_selected_rom_bank(&self) -> MemoryBank {
+        let mut bank = MemoryBank::new(0x4000);
+        let contents = self.read_rom_contents();
+        for (i, value) in contents.iter().enumerate() {
+            if i > (0x3FFF as usize) {
+                bank.contents[i - 0x4000 as usize] = *value;
+            }
+        }
+        bank
+    }
+
+    fn get_base_rom_bank(&self) -> MemoryBank {
+        let mut bank = MemoryBank::new(0x0000);
+        let contents = self.read_rom_contents();
+        for (i, value) in contents.iter().enumerate() {
+            if i < (0x4000 as usize) {
+                bank.contents[i] = *value;
+            }
+        }
+        bank
+    }
+
+    fn get_selected_ram_bank(&self) -> MemoryBank {
+        MemoryBank::new(0)
+    }
+
+    fn is_ram_enabled(&mut self, address: u16, value: u8) -> bool {
+        false
+    }
+
+    fn is_selecting_mode(&mut self, address: u16, value: u8) -> bool {
+        false
+    }
+
+    fn new() -> Self {
+        NoChip {
+            rom_path: String::new(),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct MBC1 {
     rom_bank: u8,
     ram_bank: u8,
     ram_enabled: bool,
     mode: MemoryMode,
+    rom_path: String,
 }
 
 impl MBC1 {
@@ -101,6 +176,22 @@ impl MBC1 {
     const BANK2_RANGE_END: u16 = 0x5FFF;
     const MODE_RANGE_START: u16 = 0x6000;
     const MODE_RANGE_END: u16 = 0x7FFF;
+
+    pub fn from_rom_path(rom_path: &str) -> Self {
+        MBC1 {
+            rom_bank: 0x01,
+            ram_bank: 0,
+            ram_enabled: false,
+            mode: MemoryMode::ROM,
+            rom_path: String::from_str(rom_path).unwrap(),
+        }
+    }
+
+    pub fn read_rom_contents(&self) -> Vec<u8> {
+        let buffer = BufReader::new(File::open(self.rom_path.as_str()).unwrap());
+        let bytes: Vec<u8> = buffer.bytes().map(|x| x.unwrap()).collect();
+        bytes
+    }
 }
 
 impl MappingChip for MBC1 {
@@ -110,7 +201,8 @@ impl MappingChip for MBC1 {
             if bank == 0 {
                 bank = 1;
             }
-            self.rom_bank |= bank;
+            self.rom_bank = (self.rom_bank & 0xE0) | bank;
+            println!("Selecting ROM using BANK1 0x{:x}", self.rom_bank);
             return true;
         }
         match self.mode {
@@ -118,6 +210,7 @@ impl MappingChip for MBC1 {
                 if address >= MBC1::BANK2_RANGE_START && address <= MBC1::BANK2_RANGE_END {
                     let bank = (value & 0x03) << 5;
                     self.rom_bank = (self.rom_bank & 0x1F) | bank;
+                    println!("Selecting ROM using BANK2 0x{:x}", self.rom_bank);
                     return true;
                 }
             }
@@ -129,8 +222,10 @@ impl MappingChip for MBC1 {
     fn is_selecting_mode(&mut self, address: u16, value: u8) -> bool {
         if address >= MBC1::MODE_RANGE_START && address <= MBC1::MODE_RANGE_END {
             self.mode = if value & 0x01 == 0 {
+                println!("selecting rom mode");
                 MemoryMode::ROM
             } else {
+                println!("selecting ram mode");
                 MemoryMode::RAM
             };
             return true;
@@ -138,7 +233,12 @@ impl MappingChip for MBC1 {
         false
     }
 
-    fn is_ram_enabled(&self) -> bool {
+    fn is_ram_enabled(&mut self, address: u16, value: u8) -> bool {
+        if address >= MBC1::RAM_ENABLE_RANGE_START && address <= MBC1::RAM_ENABLE_RANGE_END {
+            self.ram_enabled = value == 0x0A;
+
+            println!("enabling ram {}", self.ram_enabled);
+        }
         self.ram_enabled
     }
 
@@ -149,6 +249,7 @@ impl MappingChip for MBC1 {
                     MemoryMode::RAM => {
                         let bank = value & 0x03;
                         self.ram_bank = bank;
+                        println!("selecting RAM 0x{:x}", self.ram_bank);
                         return true;
                     }
                     _ => {}
@@ -159,15 +260,26 @@ impl MappingChip for MBC1 {
     }
 
     fn get_base_rom_bank(&self) -> MemoryBank {
-        MemoryBank::new(0x4000)
+        let mut bank = MemoryBank::new(0x0000);
+        let rom_contents = self.read_rom_contents();
+        for i in 0..(0x4000 as usize) {
+            bank.contents[i] = rom_contents[i];
+        }
+        bank
     }
 
     fn get_selected_ram_bank(&self) -> MemoryBank {
-        MemoryBank::new(0x4000)
+        MemoryBank::new(0xA000)
     }
 
     fn get_selected_rom_bank(&self) -> MemoryBank {
-        MemoryBank::new(0xA000)
+        println!("updating rom in 0x4000-0x7FFF area");
+        let mut bank = MemoryBank::new(0x4000);
+        let contents = self.read_rom_contents();
+        for i in 0..(0x4000 as usize) {
+            bank.contents[i] = contents[(self.rom_bank as usize * 0x4000) + i];
+        }
+        bank
     }
 
     fn new() -> Self {
@@ -175,14 +287,16 @@ impl MappingChip for MBC1 {
             rom_bank: 0,
             ram_bank: 0,
             ram_enabled: false,
-            mode: MemoryMode::ROM,
+            mode: MemoryMode::RAM,
+            rom_path: String::new(),
         }
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub enum DynamicMappingChip {
     FakeChip(FakeChip),
+    NoChip(NoChip),
     MBC1(MBC1),
 }
 
@@ -191,6 +305,7 @@ impl MappingChip for DynamicMappingChip {
         match self {
             DynamicMappingChip::FakeChip(fc) => fc.is_selecting_chip_rom(address, value),
             DynamicMappingChip::MBC1(mbc1) => mbc1.is_selecting_chip_rom(address, value),
+            DynamicMappingChip::NoChip(nc) => nc.is_selecting_chip_ram(address, value),
         }
     }
 
@@ -198,6 +313,7 @@ impl MappingChip for DynamicMappingChip {
         match self {
             DynamicMappingChip::FakeChip(fc) => fc.is_selecting_chip_ram(address, value),
             DynamicMappingChip::MBC1(mbc1) => mbc1.is_selecting_chip_ram(address, value),
+            DynamicMappingChip::NoChip(nc) => nc.is_selecting_chip_ram(address, value),
         }
     }
 
@@ -205,6 +321,7 @@ impl MappingChip for DynamicMappingChip {
         match self {
             DynamicMappingChip::FakeChip(fc) => fc.get_base_rom_bank(),
             DynamicMappingChip::MBC1(mbc1) => mbc1.get_base_rom_bank(),
+            DynamicMappingChip::NoChip(nc) => nc.get_base_rom_bank(),
         }
     }
 
@@ -212,6 +329,7 @@ impl MappingChip for DynamicMappingChip {
         match self {
             DynamicMappingChip::FakeChip(fc) => fc.get_selected_rom_bank(),
             DynamicMappingChip::MBC1(mbc1) => mbc1.get_selected_rom_bank(),
+            DynamicMappingChip::NoChip(nc) => nc.get_selected_rom_bank(),
         }
     }
 
@@ -219,13 +337,15 @@ impl MappingChip for DynamicMappingChip {
         match self {
             DynamicMappingChip::FakeChip(fc) => fc.get_selected_ram_bank(),
             DynamicMappingChip::MBC1(mbc1) => mbc1.get_selected_ram_bank(),
+            DynamicMappingChip::NoChip(nc) => nc.get_selected_ram_bank(),
         }
     }
 
-    fn is_ram_enabled(&self) -> bool {
+    fn is_ram_enabled(&mut self, address: u16, value: u8) -> bool {
         match self {
-            DynamicMappingChip::FakeChip(fc) => fc.is_ram_enabled(),
-            DynamicMappingChip::MBC1(mbc1) => mbc1.is_ram_enabled(),
+            DynamicMappingChip::FakeChip(fc) => fc.is_ram_enabled(address, value),
+            DynamicMappingChip::MBC1(mbc1) => mbc1.is_ram_enabled(address, value),
+            DynamicMappingChip::NoChip(nc) => nc.is_ram_enabled(address, value),
         }
     }
 
@@ -233,6 +353,7 @@ impl MappingChip for DynamicMappingChip {
         match self {
             DynamicMappingChip::FakeChip(fc) => fc.is_selecting_mode(address, value),
             DynamicMappingChip::MBC1(mbc1) => mbc1.is_selecting_mode(address, value),
+            DynamicMappingChip::NoChip(nc) => nc.is_selecting_mode(address, value),
         }
     }
 

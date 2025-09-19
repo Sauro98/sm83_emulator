@@ -100,6 +100,15 @@ impl RAM {
             Some(x) => *x = value,
             None => return None,
         }
+
+        if address == 0xFFFF {
+            println!("setting enabled interrupts to {}", value);
+        }
+
+        if address == 0xFF0F {
+            println!("setting active interrupts to {}", value);
+        }
+
         if self.data[BOOTLOCKER_ADDRESS as usize] == BOOTLOCKER_UNLOCKED {
             if self.mapping_chip.is_selecting_mode(address, value) {
             } else if self.mapping_chip.is_selecting_chip_rom(address, value) {
@@ -144,6 +153,9 @@ impl RAM {
 
     pub fn load_base_rom_bank(&mut self) {
         let bank = self.mapping_chip.get_base_rom_bank();
+        self.data[(bank.address as usize)..(bank.address as usize + (16 * 1024))]
+            .copy_from_slice(&bank.contents);
+        let bank = self.mapping_chip.get_selected_rom_bank();
         self.data[(bank.address as usize)..(bank.address as usize + (16 * 1024))]
             .copy_from_slice(&bank.contents);
     }

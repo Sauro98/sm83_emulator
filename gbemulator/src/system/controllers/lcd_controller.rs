@@ -7,6 +7,7 @@ use crate::system::ram::lcd_registers::{
 use crate::system::ram::{MemoryRegister, RAM};
 use show_image::{create_window, ImageInfo, ImageView};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 const VBLANK_PERIOD: std::time::Duration = std::time::Duration::from_millis(16);
 const BG_TILEMAP_SELECT_ADDRESSES: [u16; 2] = [0x9800, 0x9C00];
@@ -42,6 +43,18 @@ impl LCDMode {
         }
     }
 
+    pub fn get_line_duration(&self) -> std::time::Duration {
+        match self {
+            LCDMode::VBLANK => LCDMode::get_mode_duration(&LCDMode::VBLANK) / 30,
+            _ => {
+                (LCDMode::get_mode_duration(&LCDMode::HBLANK)
+                    + LCDMode::get_mode_duration(&LCDMode::OAM)
+                    + LCDMode::get_mode_duration(&LCDMode::TX))
+                    / 144
+            }
+        }
+    }
+
     pub fn get_next_state(&self) -> Self {
         match self {
             LCDMode::HBLANK => LCDMode::OAM,
@@ -53,7 +66,7 @@ impl LCDMode {
 
     pub fn get_vertical_line(&self) -> u8 {
         match self {
-            LCDMode::VBLANK => GB_SCREEN_HEIGHT as u8,
+            LCDMode::VBLANK => 153 as u8,
             _ => 0,
         }
     }
@@ -63,6 +76,8 @@ struct LCDStateMachine {
     active_mode: LCDMode,
     curr_mode_start: std::time::Instant,
     last_vblank: std::time::Instant,
+    current_line: u8,
+    last_line_time: std::time::Instant,
 }
 
 impl LCDStateMachine {
@@ -71,6 +86,8 @@ impl LCDStateMachine {
             active_mode: LCDMode::OAM,
             curr_mode_start: std::time::Instant::now(),
             last_vblank: std::time::Instant::now(),
+            current_line: 0,
+            last_line_time: std::time::Instant::now(),
         }
     }
 
@@ -79,7 +96,19 @@ impl LCDStateMachine {
             LCDMode::VBLANK => {
                 if self.curr_mode_start.elapsed() >= self.active_mode.get_mode_duration() {
                     self.last_vblank = std::time::Instant::now();
+                    self.current_line = 0;
+                    self.last_line_time = Instant::now();
                     //println!("End VBLANK");
+                } else if self.last_line_time.elapsed() > self.active_mode.get_line_duration() {
+                    self.current_line = if self.current_line < 153 {
+                        self.current_line + 1
+                    } else {
+                        self.current_line
+                    };
+                    self.last_line_time = Instant::now();
+                    if self.current_line >= 148 {
+                        println!("ly >= 148");
+                    }
                 }
             }
             _ => {
@@ -87,6 +116,15 @@ impl LCDStateMachine {
                     self.active_mode = LCDMode::VBLANK;
                     //println!("Start VBLANK");
                     self.curr_mode_start = std::time::Instant::now();
+                    self.current_line = GB_SCREEN_HEIGHT as u8;
+                    self.last_line_time = Instant::now();
+                } else if self.last_line_time.elapsed() > self.active_mode.get_line_duration() {
+                    self.current_line = if self.current_line < GB_SCREEN_HEIGHT as u8 - 1 {
+                        self.current_line + 1
+                    } else {
+                        self.current_line
+                    };
+                    self.last_line_time = Instant::now()
                 }
             }
         }
@@ -99,6 +137,10 @@ impl LCDStateMachine {
 
     pub fn get_active_mode(&self) -> &LCDMode {
         &self.active_mode
+    }
+
+    pub fn get_current_line(&self) -> u8 {
+        self.current_line
     }
 }
 
@@ -338,7 +380,7 @@ impl LCDController {
             lcd_control_register: LCDControlRegister::new(),
             lcd_status_register: LCDStatusRegister::new(),
             ly_register: LYRegister::new(),
-            clock: SystemClock::from_frequency(1e6 / 19.0),
+            clock: SystemClock::from_frequency(1e6 / 19.0f32),
             state_machine: LCDStateMachine::new(),
             pixel_data: pixel_data.clone(),
             thread_finished: thread_finished.clone(),
@@ -424,7 +466,7 @@ impl LCDController {
                 self.lcd_status_register
                     .set_status(self.state_machine.get_active_mode().get_status_byte());
                 self.ly_register
-                    .set_line(self.state_machine.get_active_mode().get_vertical_line());
+                    .set_line(self.state_machine.get_current_line());
                 self.load_in_ram(&mut ram);
                 self.pixel_data.lock().unwrap().load_in_ram(&mut ram);
             }
