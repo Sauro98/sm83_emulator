@@ -11,6 +11,6 @@ fn main() {
             "./ttr.gb",
         ))),
     );
-    let n_cycles = 1_000_000;
+    let n_cycles = 60 * 1_000_000;
     let _ = gameboy.run(n_cycles);
 }

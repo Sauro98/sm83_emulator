@@ -4,7 +4,6 @@ pub mod opcodes;
 pub mod registers;
 pub mod snapshot;
 
-use crate::system::clock::SystemClock;
 use crate::system::ram::RAM;
 use alu::ALU;
 use idu::IDU;
@@ -12,8 +11,19 @@ use opcodes::{CBPrefixOpCode, OpCode};
 use registers::{RegisterFile, RegisterName};
 use snapshot::SM83Snapshot;
 
+const VBLANK_INT: u8 = 0x01;
+const LCD_STAT_INT: u8 = 0x02;
+const TIMER_INT: u8 = 0x04;
+const SERIAL_INT: u8 = 0x08;
+const JOYPAD_INT: u8 = 0x10;
+
+const VBLANK_INT_VECTOR: u16 = 0x0040;
+const LCD_STAT_INT_VECTOR: u16 = 0x0048;
+const TIMER_INT_VECTOR: u16 = 0x0050;
+const SERIAL_INT_VECTOR: u16 = 0x0058;
+const JOYPAD_INT_VECTOR: u16 = 0x0060;
+
 pub struct SM83 {
-    internal_clock: SystemClock,
     last_execution_time: std::time::Instant,
     iteration_time: u128,
     pub cycle_count: u128,
@@ -21,12 +31,13 @@ pub struct SM83 {
     address_bus: u16,
     data_bus: u8,
     ime: bool,
+    last_opcode: u8,
+    last_pc: u16,
 }
 
 impl SM83 {
-    pub fn new(clock_frequency: f32) -> SM83 {
+    pub fn new() -> SM83 {
         SM83 {
-            internal_clock: SystemClock::from_frequency(clock_frequency),
             last_execution_time: std::time::Instant::now(),
             iteration_time: 1,
             cycle_count: 0,
@@ -34,6 +45,8 @@ impl SM83 {
             address_bus: 0,
             data_bus: 0,
             ime: false,
+            last_opcode: 0,
+            last_pc: 0,
         }
     }
 
@@ -227,7 +240,7 @@ impl SM83 {
     }
 
     fn tick_clock(&mut self) {
-        self.internal_clock.next();
+        // todo: find a way to stop for multi-cycle operations. Will possibly need a state machine
         let duration = std::time::Instant::now().duration_since(self.last_execution_time);
         if self.cycle_count == 0 {
             self.iteration_time = duration.as_nanos();
@@ -245,9 +258,11 @@ impl SM83 {
         match op_code {
             None => {
                 panic!(
-                    "Unrecognized OP CODE {:x} at PC {:x}",
+                    "Unrecognized OP CODE {:x} at PC {:x}. Last opcode {:x} at pc {:x}",
                     ir,
-                    self.register_file.get_pc()
+                    self.register_file.get_pc(),
+                    self.last_opcode,
+                    self.last_pc
                 );
             }
             Some(OpCode::LD_HL_n) => {
@@ -1000,6 +1015,8 @@ impl SM83 {
                 self.fetch_cycle(ram);
             }
         }
+        self.last_opcode = ir;
+        self.last_pc = self.register_file.get_pc();
         self.tick_clock();
         if self.ime {
             self.check_interrupts(ram);
@@ -1011,16 +1028,21 @@ impl SM83 {
         if interrupts == 0 {
             return;
         }
-        if interrupts & 0x01 == 0x01 {
-            panic!("unhandled VBLANK interrupt");
+        if interrupts & VBLANK_INT == VBLANK_INT {
+            self.register_file.set_pc(VBLANK_INT_VECTOR);
+            self.ime = false;
+            return;
         }
-        if interrupts & 0x02 == 0x02 {
+        if interrupts & LCD_STAT_INT == LCD_STAT_INT {
             panic!("unhandled LCD STAT interrupt");
         }
-        if interrupts & 0x04 == 0x04 {
+        if interrupts & TIMER_INT == TIMER_INT {
+            panic!("unhandled TIMER interrupt");
+        }
+        if interrupts & SERIAL_INT == SERIAL_INT {
             panic!("unhandled SERIAL interrupt");
         }
-        if interrupts & 0x08 == 0x08 {
+        if interrupts & JOYPAD_INT == JOYPAD_INT {
             panic!("unhandled JOYPAD interrupt");
         }
         panic!("unknown interrupt");
@@ -1028,14 +1050,6 @@ impl SM83 {
 
     pub fn fps(&self) -> f32 {
         1. / (self.iteration_time as f32 * 1e-9)
-    }
-
-    pub fn avg_delay(&self) -> i128 {
-        return self.internal_clock.avg_delay();
-    }
-
-    pub fn sleep_count(&self) -> u128 {
-        return self.internal_clock.sleep_count();
     }
 
     #[allow(dead_code)]

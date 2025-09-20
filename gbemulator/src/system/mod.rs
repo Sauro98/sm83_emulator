@@ -1,8 +1,9 @@
-pub mod clock;
 pub mod controllers;
+pub mod master_clock;
 pub mod ram;
 pub mod sm83;
 
+use master_clock::MasterClock;
 use ram::MemoryRegister;
 use sm83::snapshot::SM83Snapshot;
 use std::sync::{
@@ -34,12 +35,16 @@ pub struct System {
     lcd_controller: Arc<Mutex<controllers::lcd_controller::LCDController>>,
     sound_controller: Arc<Mutex<controllers::sound_controller::SoundController>>,
     should_reload_cartridge: bool,
+    master_clock: MasterClock,
+    cpu_ready: Arc<AtomicBool>,
+    lcd_ready: Arc<AtomicBool>,
+    sound_ready: Arc<AtomicBool>,
 }
 
 impl System {
     pub fn new(clock_frequency: f32, dynamic_chip: Option<DynamicMappingChip>) -> System {
         return System {
-            cpu: Arc::new(Mutex::new(sm83::SM83::new(clock_frequency))),
+            cpu: Arc::new(Mutex::new(sm83::SM83::new())),
             ram: Arc::new(Mutex::new(ram::RAM::new(dynamic_chip))),
             boot_rom: ram::BootRom::new(),
             bootlock_register: Arc::new(Mutex::new(ram::BootLockMemoryRegister::new())),
@@ -48,15 +53,15 @@ impl System {
                 controllers::sound_controller::SoundController::new(),
             )),
             should_reload_cartridge: false,
+            master_clock: MasterClock::new(),
+            cpu_ready: Arc::new(AtomicBool::new(false)),
+            lcd_ready: Arc::new(AtomicBool::new(false)),
+            sound_ready: Arc::new(AtomicBool::new(false)),
         };
     }
 
-    pub fn from_ram_snapshot(
-        clock_frequency: f32,
-        ram: ram::RAM,
-        snapshot: SM83Snapshot,
-    ) -> System {
-        let mut cpu = sm83::SM83::new(clock_frequency);
+    pub fn from_ram_snapshot(ram: ram::RAM, snapshot: SM83Snapshot) -> System {
+        let mut cpu = sm83::SM83::new();
         cpu.load_snapshot(snapshot);
         cpu.fetch_cycle(&ram);
         return System {
@@ -69,6 +74,10 @@ impl System {
                 controllers::sound_controller::SoundController::new(),
             )),
             should_reload_cartridge: false,
+            master_clock: MasterClock::new(),
+            cpu_ready: Arc::new(AtomicBool::new(false)),
+            lcd_ready: Arc::new(AtomicBool::new(false)),
+            sound_ready: Arc::new(AtomicBool::new(false)),
         };
     }
 
@@ -93,33 +102,39 @@ impl System {
         let sound_ram_ref = self.ram.clone();
         let sound_ref = self.sound_controller.clone();
         let loop_finished_ref = Arc::new(AtomicBool::new(false));
+        let cpu_loop_finished_ref = loop_finished_ref.clone();
         let lcd_loop_finished_ref = loop_finished_ref.clone();
         let sound_loop_finished_ref = loop_finished_ref.clone();
+        let cpu_ready_ref = self.cpu_ready.clone();
+        let lcd_ready_ref = self.lcd_ready.clone();
+        let sound_ready_ref = self.sound_ready.clone();
         let cpu_thread_handle = std::thread::spawn(move || {
             let start = std::time::Instant::now();
             for _ in 0..n_iter {
-                let mut ram = cpu_ram_ref.lock().unwrap();
-                let mut cpu = cpu_ref.lock().unwrap();
-                cpu.next(&mut ram);
-                if ram.was_dma_requested() {
-                    //todo perform dma
-                    println!("Performing DMA");
-                    ram.reset_dma_request();
-                }
+                if cpu_ready_ref.load(Ordering::Relaxed) {
+                    let mut ram = cpu_ram_ref.lock().unwrap();
+                    let mut cpu = cpu_ref.lock().unwrap();
+                    cpu.next(&mut ram);
+                    if ram.was_dma_requested() {
+                        //todo perform dma
+                        println!("Performing DMA");
+                        ram.reset_dma_request();
+                    }
 
-                let mut blr = bootlocker_ref.lock().unwrap();
-                blr.read_from_ram(&ram);
-                if blr.is_unlocked() && self.should_reload_cartridge {
-                    println!("bootlock unlocked");
-                    self.should_reload_cartridge = false;
-                    ram.load_base_rom_bank();
-                }
+                    let mut blr = bootlocker_ref.lock().unwrap();
+                    blr.read_from_ram(&ram);
+                    if blr.is_unlocked() && self.should_reload_cartridge {
+                        println!("bootlock unlocked");
+                        self.should_reload_cartridge = false;
+                        ram.load_base_rom_bank();
+                    }
 
-                if cpu.get_register(sm83::registers::RegisterName::PC) == 0xFF {
-                    println!("boot rom ended");
+                    if cpu.get_register(sm83::registers::RegisterName::PC) == 0xFF {
+                        println!("boot rom ended");
+                    }
                 }
             }
-            loop_finished_ref.store(true, Ordering::Relaxed);
+            cpu_loop_finished_ref.store(true, Ordering::Relaxed);
             let cpu = cpu_ref.lock().unwrap();
             println!(
                 "CPU pc: {:X}",
@@ -133,15 +148,16 @@ impl System {
                 "CPU Execution frequency {}",
                 format_frequency(cycles_per_second as f32)
             );
-            println!("{}", cpu.sleep_count());
         });
         let lcd_thread_handle = std::thread::spawn(move || {
             let start = std::time::Instant::now();
             let mut lcd_n_iter = 0;
             loop {
-                let mut lcd = lcd_ref.lock().unwrap();
-                lcd.next(&lcd_ram_ref);
-                lcd_n_iter += 1;
+                if lcd_ready_ref.load(Ordering::Relaxed) {
+                    let mut lcd = lcd_ref.lock().unwrap();
+                    lcd.next(&lcd_ram_ref);
+                    lcd_n_iter += 1;
+                }
                 if lcd_loop_finished_ref.load(Ordering::Relaxed) {
                     break;
                 }
@@ -160,9 +176,11 @@ impl System {
             let start = std::time::Instant::now();
             let mut sound_n_iter = 0;
             loop {
-                let mut sound = sound_ref.lock().unwrap();
-                sound.next(&sound_ram_ref);
-                sound_n_iter += 1;
+                if sound_ready_ref.load(Ordering::Relaxed) {
+                    let mut sound = sound_ref.lock().unwrap();
+                    sound.next(&sound_ram_ref);
+                    sound_n_iter += 1;
+                }
                 if sound_loop_finished_ref.load(Ordering::Relaxed) {
                     break;
                 }
@@ -177,6 +195,15 @@ impl System {
             );
             sound_ref.lock().unwrap().stop_sound_thread();
         });
+
+        loop {
+            self.master_clock
+                .next(&self.cpu_ready, &self.lcd_ready, &self.sound_ready);
+            if loop_finished_ref.load(Ordering::Relaxed) {
+                break;
+            }
+        }
+
         println!("Wating for join");
         cpu_thread_handle.join().unwrap();
         println!("CPU joined");
@@ -213,5 +240,6 @@ impl System {
             self.should_reload_cartridge = true;
         }
         cpu.reset(&ram);
+        self.master_clock.start();
     }
 }

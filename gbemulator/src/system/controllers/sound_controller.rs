@@ -1,6 +1,5 @@
 use crate::system::ram::sound_registers::Channel4Registers;
 
-use crate::system::clock::SystemClock;
 use crate::system::ram::sound_registers::{
     Channel1Registers, Channel2Registers, Channel3Registers, SoundOutputSelectionRegister,
     SoundRegisters,
@@ -709,7 +708,6 @@ pub fn reproduce_sound_terminal(
 }
 
 pub struct SoundController {
-    clock: SystemClock,
     sound_registers: SoundRegisters,
     thread_finished: Arc<Mutex<bool>>,
     thread_handle: std::thread::JoinHandle<()>,
@@ -724,7 +722,6 @@ impl SoundController {
         let terminal_1_ref = Arc::new(Mutex::new(SoundTerminal::new()));
         let terminal_2_ref = Arc::new(Mutex::new(SoundTerminal::new()));
         SoundController {
-            clock: SystemClock::from_frequency(1e3),
             sound_registers: SoundRegisters::new(),
             thread_finished: thread_finished.clone(),
             sound_on: false,
@@ -762,42 +759,39 @@ impl SoundController {
     }
 
     pub fn next(&mut self, ram: &Arc<Mutex<RAM>>) {
-        {
-            let mut ram = ram.lock().unwrap();
-            self.sound_registers.read_from_ram(&ram);
-            if self.sound_registers.sound_on_off.is_sound_on() != self.sound_on {
-                println!(
-                    "Sound control switched from {} to {}",
-                    self.sound_on,
-                    self.sound_registers.sound_on_off.is_sound_on()
-                );
-                self.sound_on = self.sound_registers.sound_on_off.is_sound_on();
-            }
-            if !self.sound_on {
-                self.sound_registers.reset();
-            } else {
-                {
-                    let mut terminal1 = self.terminal_1.lock().unwrap();
-                    terminal1.set_volume(self.sound_registers.channel_control.terminal_1_volume());
-                    let enabled_sounds_terminal_1 = self
-                        .sound_registers
-                        .sound_output_selection
-                        .terminal_1_sound();
-                    terminal1.set_sounds(enabled_sounds_terminal_1, &mut self.sound_registers);
-                }
-                {
-                    let mut terminal2 = self.terminal_2.lock().unwrap();
-                    terminal2.set_volume(self.sound_registers.channel_control.terminal_2_volume());
-                    let enabled_sounds_terminal_2 = self
-                        .sound_registers
-                        .sound_output_selection
-                        .terminal_2_sound();
-                    terminal2.set_sounds(enabled_sounds_terminal_2, &mut self.sound_registers);
-                }
-                self.sound_registers.load_in_ram(&mut ram);
-            }
+        let mut ram = ram.lock().unwrap();
+        self.sound_registers.read_from_ram(&ram);
+        if self.sound_registers.sound_on_off.is_sound_on() != self.sound_on {
+            println!(
+                "Sound control switched from {} to {}",
+                self.sound_on,
+                self.sound_registers.sound_on_off.is_sound_on()
+            );
+            self.sound_on = self.sound_registers.sound_on_off.is_sound_on();
         }
-        self.clock.next();
+        if !self.sound_on {
+            self.sound_registers.reset();
+        } else {
+            {
+                let mut terminal1 = self.terminal_1.lock().unwrap();
+                terminal1.set_volume(self.sound_registers.channel_control.terminal_1_volume());
+                let enabled_sounds_terminal_1 = self
+                    .sound_registers
+                    .sound_output_selection
+                    .terminal_1_sound();
+                terminal1.set_sounds(enabled_sounds_terminal_1, &mut self.sound_registers);
+            }
+            {
+                let mut terminal2 = self.terminal_2.lock().unwrap();
+                terminal2.set_volume(self.sound_registers.channel_control.terminal_2_volume());
+                let enabled_sounds_terminal_2 = self
+                    .sound_registers
+                    .sound_output_selection
+                    .terminal_2_sound();
+                terminal2.set_sounds(enabled_sounds_terminal_2, &mut self.sound_registers);
+            }
+            self.sound_registers.load_in_ram(&mut ram);
+        }
     }
 
     pub fn stop_sound_thread(&self) {
