@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{BufReader, Read},
+    io::{BufReader, Read, Write},
     str::FromStr,
 };
 
@@ -104,6 +104,11 @@ impl NoChip {
     pub fn read_rom_contents(&self) -> Vec<u8> {
         let buffer = BufReader::new(File::open(self.rom_path.as_str()).unwrap());
         let bytes: Vec<u8> = buffer.bytes().map(|x| x.unwrap()).collect();
+        // let mut file = File::create("output.hex").unwrap();
+
+        // for (i, byte) in bytes.iter().enumerate() {
+        //     write!(file, "{:04X} {:02x} \n", i, byte).unwrap();
+        // }
         bytes
     }
 }

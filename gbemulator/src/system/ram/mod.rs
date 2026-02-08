@@ -56,7 +56,6 @@ pub struct RAM {
     data: std::vec::Vec<u8>,
     #[allow(dead_code)]
     capacity: usize,
-    dma_requested: bool,
     mapping_chip: DynamicMappingChip,
 }
 
@@ -65,7 +64,6 @@ impl Clone for RAM {
         Self {
             data: self.data.clone(),
             capacity: self.capacity.clone(),
-            dma_requested: self.dma_requested.clone(),
             mapping_chip: self.mapping_chip.clone(),
         }
     }
@@ -83,7 +81,6 @@ impl RAM {
         RAM {
             data: data,
             capacity: capacity,
-            dma_requested: false,
             mapping_chip: dynamic_chip,
         }
     }
@@ -94,7 +91,11 @@ impl RAM {
 
     pub fn set_at(&mut self, address: u16, value: u8) -> Option<()> {
         if address == DMA_ADDRESS {
-            self.dma_requested = true;
+            let source_address = (value as u16) << 8;
+            let target_address = 0xFE00;
+            for i in 0..0xA0 {
+                self.data[(target_address + i) as usize] = self.data[(source_address + i) as usize];
+            }
         }
         match self.data.get_mut(address as usize) {
             Some(x) => *x = value,
@@ -122,14 +123,6 @@ impl RAM {
             }
         }
         Some(())
-    }
-
-    pub fn was_dma_requested(&self) -> bool {
-        self.dma_requested
-    }
-
-    pub fn reset_dma_request(&mut self) {
-        self.dma_requested = false;
     }
 
     pub fn get_tile_data(

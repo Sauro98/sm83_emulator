@@ -73,7 +73,7 @@ fn read_sm83_state(json_state: &JsonValue) -> (SM83Snapshot, RAM) {
         .with_ime(read_bool_value(json_state, "ime"))
         .with_pc(read_u16_value(json_state, "pc"))
         .with_sp(read_u16_value(json_state, "sp"));
-    let mut ram = RAM::new();
+    let mut ram = RAM::new(None);
     fill_ram(&json_state["ram"], &mut ram);
     return (snapshot, ram);
 }
@@ -92,7 +92,7 @@ fn read_test_case(json_content: &json::JsonValue) -> Result<(), ()> {
     let initial_state = &json_content["initial"];
     let final_state = &json_content["final"];
     let (initial_snapshot, intial_ram) = read_sm83_state(initial_state);
-    let mut simulator = System::from_ram_snapshot(1e6, intial_ram, initial_snapshot);
+    let mut simulator = System::from_ram_snapshot(intial_ram, initial_snapshot, true);
     //for cycle_json in cycles {
     simulator.next();
     //}

@@ -260,20 +260,20 @@ impl LCDImage {
 
     pub fn set_bg_vram_address(&mut self, address: u16) {
         if address != self.bg_tilemap_address && address == 0x9800 {
-            println!("setting tilemap 1")
+            println!("setting tilemap positive for background")
         }
         if address != self.bg_tilemap_address && address == 0x9C00 {
-            println!("setting tilemap 2")
+            println!("setting tilemap negative for background")
         }
         self.bg_tilemap_address = address;
     }
 
     pub fn set_bg_win_tiledata_address(&mut self, address: u16) {
         if address != self.bg_win_tiledata_address && address == 0x8800 {
-            println!("setting negative offset bg tiledata")
+            println!("setting negative offset bg tiledata for window")
         }
         if address != self.bg_win_tiledata_address && address == 0x8000 {
-            println!("setting postive offset bg tiledata")
+            println!("setting postive offset bg tiledata for window")
         }
         self.bg_win_tiledata_address = address;
     }
@@ -291,19 +291,7 @@ impl LCDImage {
     }
 
     pub fn draw(&mut self, draw_bg: bool, draw_window: bool, draw_sprites: bool) {
-        /*for i in 0i32..(255 * 255) {
-            let row = i / 256;
-            let col = i % 256;
-            let tile_row = row / 8;
-            let tile_col = col / 8;
-            let tile_index = tile_row * 32 + tile_col;
-            let tile_pixel_row = row % 8;
-            let tile_pixel_col = col % 8;
-            self.pixel_data[i as usize] = self.tile_map[tile_index as usize].pixel_data
-                [(tile_pixel_row * 8 + tile_pixel_col) as usize];
-        }*/
         if draw_bg {
-            //println!("draw bg");
             for tile_row in 0..32 {
                 for tile_col in 0..32 {
                     let curr_tile = &self.tile_map[tile_row * 32 + tile_col];
@@ -367,7 +355,7 @@ pub struct LCDController {
 }
 
 impl LCDController {
-    pub fn new() -> Self {
+    pub fn new(headless: bool) -> Self {
         let thread_finished = std::sync::Arc::new(std::sync::Mutex::new(false));
         let image_ready = std::sync::Arc::new(std::sync::Mutex::new(false));
         let pixel_data = std::sync::Arc::new(std::sync::Mutex::new(LCDImage::new()));
@@ -380,6 +368,9 @@ impl LCDController {
             thread_finished: thread_finished.clone(),
             image_ready: image_ready.clone(),
             thread_handle: std::thread::spawn(move || {
+                if headless {
+                    return;
+                }
                 let thread_finished_ref = thread_finished.clone();
                 let image_ready_ref = image_ready.clone();
                 let pixel_data_ref = pixel_data.clone();

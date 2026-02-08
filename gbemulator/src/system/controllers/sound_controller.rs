@@ -218,7 +218,7 @@ impl ToneNSweep {
         let counter_consecutive_selection = (freq_hi_register_value & 0x40) > 0;
         let repeat = !counter_consecutive_selection;
 
-        if initial {
+        if initial && false {
             println!(
                 "Initial frequency {}Hz, {}",
                 initial_frequency, initial_frequency_u16
@@ -292,7 +292,7 @@ impl ToneNSweep {
         let counter_consecutive_selection = (freq_hi_register_value & 0x40) > 0;
         let repeat = !counter_consecutive_selection;
 
-        if initial {
+        if initial && false {
             println!("Initial frequency {}Hz", initial_frequency);
             println!("Wave duty {}", wave_pattern_duty);
             println!("Counter selection {}", counter_consecutive_selection);
@@ -470,7 +470,7 @@ impl WhiteNoise {
                 .set_value(counter_consecutive_register_value & 0x7F);
         }
 
-        if initial {
+        if initial && false {
             println!("Initial frequency {}Hz", frequency);
             println!("Counter selection {}", counter_consecutive_selection);
             println!("Sound duration {:?}", sound_length);

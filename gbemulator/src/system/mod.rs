@@ -42,13 +42,15 @@ pub struct System {
 }
 
 impl System {
-    pub fn new(clock_frequency: f32, dynamic_chip: Option<DynamicMappingChip>) -> System {
+    pub fn new(dynamic_chip: Option<DynamicMappingChip>, headless: bool) -> System {
         return System {
             cpu: Arc::new(Mutex::new(sm83::SM83::new())),
             ram: Arc::new(Mutex::new(ram::RAM::new(dynamic_chip))),
             boot_rom: ram::BootRom::new(),
             bootlock_register: Arc::new(Mutex::new(ram::BootLockMemoryRegister::new())),
-            lcd_controller: Arc::new(Mutex::new(controllers::lcd_controller::LCDController::new())),
+            lcd_controller: Arc::new(Mutex::new(controllers::lcd_controller::LCDController::new(
+                headless,
+            ))),
             sound_controller: Arc::new(Mutex::new(
                 controllers::sound_controller::SoundController::new(),
             )),
@@ -60,7 +62,7 @@ impl System {
         };
     }
 
-    pub fn from_ram_snapshot(ram: ram::RAM, snapshot: SM83Snapshot) -> System {
+    pub fn from_ram_snapshot(ram: ram::RAM, snapshot: SM83Snapshot, headless: bool) -> System {
         let mut cpu = sm83::SM83::new();
         cpu.load_snapshot(snapshot);
         cpu.fetch_cycle(&ram);
@@ -69,7 +71,9 @@ impl System {
             ram: Arc::new(Mutex::new(ram)),
             boot_rom: ram::BootRom::new(),
             bootlock_register: Arc::new(Mutex::new(ram::BootLockMemoryRegister::new())),
-            lcd_controller: Arc::new(Mutex::new(controllers::lcd_controller::LCDController::new())),
+            lcd_controller: Arc::new(Mutex::new(controllers::lcd_controller::LCDController::new(
+                headless,
+            ))),
             sound_controller: Arc::new(Mutex::new(
                 controllers::sound_controller::SoundController::new(),
             )),
@@ -85,11 +89,6 @@ impl System {
         let mut ram = self.ram.lock().unwrap();
         let mut cpu = self.cpu.lock().unwrap();
         cpu.next(&mut ram);
-        if ram.was_dma_requested() {
-            //todo perform dma
-            println!("Performing DMA");
-            ram.reset_dma_request();
-        }
     }
 
     pub fn run(mut self, n_iter: usize) -> Self {
@@ -115,11 +114,6 @@ impl System {
                     let mut ram = cpu_ram_ref.lock().unwrap();
                     let mut cpu = cpu_ref.lock().unwrap();
                     cpu.next(&mut ram);
-                    if ram.was_dma_requested() {
-                        //todo perform dma
-                        println!("Performing DMA");
-                        ram.reset_dma_request();
-                    }
 
                     let mut blr = bootlocker_ref.lock().unwrap();
                     blr.read_from_ram(&ram);
